@@ -19,9 +19,16 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npx electron-builder --win --config.win.target=nsis --publish=always
+      - run: npx electron-builder --win --config.win.target=nsis --publish=never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.exe
+            release/*.exe.blockmap
+            release/latest.yml
+          tag_name: ${{ github.ref_name }}
 
   build-mac:
     runs-on: macos-latest
@@ -33,6 +40,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npx electron-builder --mac --config.mac.target=dmg --publish=always
+      - run: npx electron-builder --mac --config.mac.target=dmg --publish=never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            release/*.dmg
+            release/*.dmg.blockmap
+            release/latest-mac.yml
+          tag_name: ${{ github.ref_name }}
