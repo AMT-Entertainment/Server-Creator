@@ -89,7 +89,7 @@ function App() {
               Public Beta - Data is not permanent
             </div>
             <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: '4px 0' }}>
-              AMT Entertainment v1.0.2
+              AMT Entertainment v1.0.3
             </div>
           </div>
         </aside>
