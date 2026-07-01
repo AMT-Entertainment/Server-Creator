@@ -1,4 +1,5 @@
 import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
@@ -46,6 +47,40 @@ function createWindow() {
 
 app.whenReady().then(() => {
   createWindow();
+
+  autoUpdater.logger = console;
+  autoUpdater.autoDownload = false;
+  autoUpdater.autoInstallOnAppQuit = true;
+
+  autoUpdater.on('update-available', (info) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update:available', info.version);
+    }
+  });
+
+  autoUpdater.on('update-not-available', () => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update:not-available');
+    }
+  });
+
+  autoUpdater.on('download-progress', (progress) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update:progress', progress.percent);
+    }
+  });
+
+  autoUpdater.on('update-downloaded', (info) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update:downloaded', info.version);
+    }
+  });
+
+  autoUpdater.on('error', (err) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('update:error', err.message);
+    }
+  });
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -311,6 +346,22 @@ ipcMain.handle('server:config:get', (_event, serverId: string) => {
 
 ipcMain.handle('server:config:set', (_event, serverId: string, config: any) => {
   serverManager.setServerConfig(serverId, config);
+  return { success: true };
+});
+
+// Auto-update
+ipcMain.handle('update:check', () => {
+  autoUpdater.checkForUpdates().catch(() => {});
+  return { success: true };
+});
+
+ipcMain.handle('update:download', () => {
+  autoUpdater.downloadUpdate().catch(() => {});
+  return { success: true };
+});
+
+ipcMain.handle('update:install', () => {
+  autoUpdater.quitAndInstall();
   return { success: true };
 });
 

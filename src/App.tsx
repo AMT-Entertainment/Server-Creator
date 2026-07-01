@@ -12,6 +12,7 @@ function App() {
   const navigate = useNavigate();
   const location = useLocation();
   const [servers, setServers] = useState<any[]>([]);
+  const [updateState, setUpdateState] = useState<{ type: 'checking' | 'available' | 'downloading' | 'downloaded' | 'error'; message?: string; progress?: number } | null>(null);
 
   const loadServers = async () => {
     if (window.electronAPI) {
@@ -25,6 +26,34 @@ function App() {
   }, []);
 
   const refreshServers = () => loadServers();
+
+  useEffect(() => {
+    if (!window.electronAPI) return;
+    const unsub1 = window.electronAPI.onUpdateAvailable((version) => {
+      setUpdateState({ type: 'available', message: `Update ${version} available` });
+    });
+    const unsub2 = window.electronAPI.onUpdateNotAvailable(() => {
+      setUpdateState(null);
+    });
+    const unsub3 = window.electronAPI.onUpdateProgress((percent) => {
+      setUpdateState({ type: 'downloading', progress: Math.round(percent) });
+    });
+    const unsub4 = window.electronAPI.onUpdateDownloaded((version) => {
+      setUpdateState({ type: 'downloaded', message: `Update ${version} downloaded` });
+    });
+    const unsub5 = window.electronAPI.onUpdateError((error) => {
+      setUpdateState({ type: 'error', message: error });
+    });
+    window.electronAPI.checkForUpdates();
+    setUpdateState({ type: 'checking', message: 'Checking for updates...' });
+    const timeout = setTimeout(() => {
+      setUpdateState(prev => prev?.type === 'checking' ? null : prev);
+    }, 10000);
+    return () => {
+      unsub1(); unsub2(); unsub3(); unsub4(); unsub5();
+      clearTimeout(timeout);
+    };
+  }, []);
 
   const isActive = (path: string) => location.pathname === path || location.pathname.startsWith(path + '/');
 
@@ -53,6 +82,41 @@ function App() {
           </div>
         </nav>
         <div className="sidebar-footer">
+          {updateState && updateState.type === 'available' && (
+            <div style={{ fontSize: 11, padding: '4px 0', textAlign: 'center' }}>
+              <span style={{ color: 'var(--accent-warning)' }}>
+                {updateState.message}
+              </span>
+              <button className="btn btn-primary btn-sm" style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px' }}
+                onClick={() => { window.electronAPI?.downloadUpdate(); setUpdateState({ type: 'downloading', progress: 0 }); }}>
+                Update
+              </button>
+            </div>
+          )}
+          {updateState && updateState.type === 'downloading' && (
+            <div style={{ fontSize: 11, padding: '4px 0', textAlign: 'center', color: 'var(--accent-info)' }}>
+              Downloading... {updateState.progress}%
+            </div>
+          )}
+          {updateState && updateState.type === 'downloaded' && (
+            <div style={{ fontSize: 11, padding: '4px 0', textAlign: 'center' }}>
+              <span style={{ color: 'var(--accent-success)' }}>
+                {updateState.message}
+              </span>
+              <button className="btn btn-primary btn-sm" style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px' }}
+                onClick={() => { window.electronAPI?.installUpdate(); }}>
+                Restart
+              </button>
+            </div>
+          )}
+          {updateState && updateState.type === 'error' && (
+            <div style={{ fontSize: 10, padding: '2px 0', textAlign: 'center', color: 'var(--text-muted)' }}>
+              Update failed
+            </div>
+          )}
+          <div style={{ fontSize: 10, color: 'var(--accent-warning)', textAlign: 'center', padding: '2px 0', opacity: 0.7 }}>
+            Public Beta - Data is not permanent
+          </div>
           <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: '4px 0' }}>
             AMT Entertainment v1.0
           </div>

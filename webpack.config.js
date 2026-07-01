@@ -31,6 +31,6 @@ module.exports = {
       filename: 'index.html',
     }),
   ],
-  target: 'electron-renderer',
+  target: 'web',
   devtool: 'source-map',
 };

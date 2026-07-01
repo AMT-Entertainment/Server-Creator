@@ -115,6 +115,14 @@ export interface ElectronAPI {
   setJVMArgs: (serverId: string, args: string) => Promise<{ success: boolean }>;
   getServerConfig: (serverId: string) => Promise<any>;
   setServerConfig: (serverId: string, config: any) => Promise<{ success: boolean }>;
+  checkForUpdates: () => Promise<{ success: boolean }>;
+  downloadUpdate: () => Promise<{ success: boolean }>;
+  installUpdate: () => Promise<{ success: boolean }>;
+  onUpdateAvailable: (callback: (version: string) => void) => () => void;
+  onUpdateNotAvailable: (callback: () => void) => () => void;
+  onUpdateProgress: (callback: (percent: number) => void) => () => void;
+  onUpdateDownloaded: (callback: (version: string) => void) => () => void;
+  onUpdateError: (callback: (error: string) => void) => () => void;
   openFileDialog: (options: any) => Promise<any>;
   saveFileDialog: (options: any) => Promise<any>;
 }
