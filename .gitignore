@@ -1,0 +1,10 @@
+node_modules/
+dist/
+release/
+build-assets/
+test-*/
+*.dmg
+*.exe
+*.blockmap
+.DS_Store
+*.log
