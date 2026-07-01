@@ -2,10 +2,8 @@ name: Build
 
 on:
   push:
-    branches: [main]
-  pull_request:
-    branches: [main]
-  workflow_dispatch:
+    tags:
+      - "v*"
 
 jobs:
   build-windows:
@@ -18,13 +16,13 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npx electron-builder --win --config.win.target=nsis
+      - run: npx electron-builder --win --config.win.target=nsis --publish=never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/upload-artifact@v4
+      - uses: softprops/action-gh-release@v2
         with:
-          name: Server-Creator-Windows
-          path: release/*.exe
+          files: release/*.exe
+          generate_release_notes: true
 
   build-mac:
     runs-on: macos-latest
@@ -36,10 +34,10 @@ jobs:
           cache: npm
       - run: npm ci
       - run: npm run build
-      - run: npx electron-builder --mac --config.mac.target=dmg
+      - run: npx electron-builder --mac --config.mac.target=dmg --publish=never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: actions/upload-artifact@v4
+      - uses: softprops/action-gh-release@v2
         with:
-          name: Server-Creator-macOS
-          path: release/*.dmg
+          files: release/*.dmg
+          generate_release_notes: true
