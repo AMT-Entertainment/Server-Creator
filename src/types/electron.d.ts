@@ -107,7 +107,7 @@ export interface ElectronAPI {
   stopTunnel: (serverId: string) => Promise<void>;
   getTunnelStatus: (serverId: string) => Promise<TunnelStatus>;
   getPublicIp: () => Promise<string | null>;
-  getLocalIp: () => string | null;
+  getLocalIp: () => Promise<string | null>;
   listFiles: (serverId: string, dirPath?: string) => Promise<FileEntry[]>;
   readFile: (serverId: string, filePath: string) => Promise<{ content: string; isBinary: boolean }>;
   writeFile: (serverId: string, filePath: string, content: string) => Promise<{ success: boolean }>;

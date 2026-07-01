@@ -62,7 +62,7 @@ export default function ServerDetail({ onServersChange }: ServerDetailProps) {
       setTunnelUrl(tStatus.url || '');
 
       window.electronAPI.getPublicIp().then(setPublicIp).catch(() => {});
-      try { setLocalIp(window.electronAPI.getLocalIp()); } catch {}
+      window.electronAPI.getLocalIp().then(setLocalIp).catch(() => {});
 
       if (statusResult.status === 'running' && !tStatus.url) {
         startTunnelForServer();
