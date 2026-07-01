@@ -90,6 +90,7 @@ export interface ElectronAPI {
   getServerStatus: (id: string) => Promise<ServerStatus>;
   getTerminalOutput: (id: string) => Promise<string[]>;
   listenToTerminal: (id: string) => Promise<{ success: boolean }>;
+  unlistenTerminal: (id: string) => Promise<{ success: boolean }>;
   getLogs: (id: string) => Promise<string[]>;
   clearLogs: (id: string) => Promise<{ success: boolean }>;
   onCreationProgress: (callback: (data: { step: string; progress: number; message: string }) => void) => () => void;

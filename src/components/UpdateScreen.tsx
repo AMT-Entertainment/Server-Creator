@@ -10,7 +10,6 @@ export default function UpdateScreen({ onComplete }: UpdateScreenProps) {
   const [phase, setPhase] = useState<Phase>('checking');
   const [version, setVersion] = useState('');
   const [progress, setProgress] = useState(0);
-  const [errorMsg, setErrorMsg] = useState('');
   const [fadeOut, setFadeOut] = useState(false);
 
   useEffect(() => {
@@ -33,13 +32,11 @@ export default function UpdateScreen({ onComplete }: UpdateScreenProps) {
       setVersion(v);
       setPhase('downloaded');
     });
-    const unsub5 = window.electronAPI.onUpdateError((err) => {
-      setErrorMsg(err);
+    const unsub5 = window.electronAPI.onUpdateError((_err) => {
       setPhase('error');
     });
 
     window.electronAPI.checkForUpdates();
-
     const fallback = setTimeout(() => {
       setPhase(prev => prev === 'checking' ? 'done' : prev);
     }, 8000);
@@ -53,7 +50,7 @@ export default function UpdateScreen({ onComplete }: UpdateScreenProps) {
   useEffect(() => {
     if (phase === 'done') {
       setFadeOut(true);
-      const t = setTimeout(onComplete, 500);
+      const t = setTimeout(onComplete, 400);
       return () => clearTimeout(t);
     }
   }, [phase, onComplete]);
@@ -67,109 +64,111 @@ export default function UpdateScreen({ onComplete }: UpdateScreenProps) {
     window.electronAPI?.installUpdate();
   };
 
-  const handleSkip = () => {
-    setPhase('done');
-  };
-
   return (
     <div style={{
       position: 'fixed', inset: 0, zIndex: 10000,
-      display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center',
-      background: 'var(--bg-primary)',
-      opacity: fadeOut ? 0 : 1,
-      transition: 'opacity 0.5s ease',
+      display: 'flex', alignItems: 'center', justifyContent: 'center',
+      background: fadeOut ? 'transparent' : 'rgba(0,0,0,0.6)',
+      backdropFilter: 'blur(4px)',
+      transition: 'background 0.4s ease',
     }}>
-      <div style={{ fontSize: 28, fontWeight: 700, color: 'var(--accent-primary)', marginBottom: 8 }}>
-        Server Creator
-      </div>
-
-      {phase === 'checking' && (
-        <div style={{ textAlign: 'center' }}>
-          <div className="spinner" style={{ width: 32, height: 32, margin: '24px auto' }} />
-          <div style={{ color: 'var(--text-secondary)', fontSize: 14 }}>Checking for updates...</div>
-        </div>
-      )}
-
-      {phase === 'available' && (
-        <div style={{ textAlign: 'center' }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 48, color: 'var(--accent-warning)', marginBottom: 16 }}>
-            system_update
-          </span>
-          <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>Update Available</div>
-          <div style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 24 }}>
-            Server Creator v{version} is ready to download
-          </div>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-            <button className="btn btn-primary btn-lg" onClick={handleDownload}>
-              <span className="material-symbols-outlined icon-sm">download</span>
-              Download Update
-            </button>
-            <button className="btn btn-ghost btn-lg" onClick={handleSkip}>
-              Skip & Launch
-            </button>
-          </div>
-        </div>
-      )}
-
-      {phase === 'downloading' && (
-        <div style={{ textAlign: 'center', width: 320 }}>
-          <div className="spinner" style={{ width: 24, height: 24, margin: '16px auto' }} />
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Downloading Update...</div>
-          <div style={{
-            width: '100%', height: 6, background: 'var(--bg-surface)',
-            borderRadius: 3, overflow: 'hidden',
-          }}>
-            <div style={{
-              width: `${progress}%`, height: '100%',
-              background: 'var(--accent-primary)',
-              borderRadius: 3, transition: 'width 0.3s ease',
-            }} />
-          </div>
-          <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 8 }}>{progress}%</div>
-        </div>
-      )}
-
-      {phase === 'downloaded' && (
-        <div style={{ textAlign: 'center' }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 48, color: 'var(--accent-success)', marginBottom: 16 }}>
-            check_circle
-          </span>
-          <div style={{ fontSize: 18, fontWeight: 600, marginBottom: 4 }}>Update Ready</div>
-          <div style={{ color: 'var(--text-muted)', fontSize: 13, marginBottom: 24 }}>
-            v{version} downloaded — restart to install
-          </div>
-          <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
-            <button className="btn btn-primary btn-lg" onClick={handleInstall}>
-              <span className="material-symbols-outlined icon-sm">restart_alt</span>
-              Restart Now
-            </button>
-            <button className="btn btn-ghost btn-lg" onClick={handleSkip}>
-              Later
-            </button>
-          </div>
-        </div>
-      )}
-
-      {phase === 'error' && (
-        <div style={{ textAlign: 'center' }}>
-          <span className="material-symbols-outlined" style={{ fontSize: 48, color: 'var(--accent-error)', marginBottom: 16 }}>
-            error
-          </span>
-          <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Update Check Failed</div>
-          <div style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 24 }}>
-            {errorMsg || 'Could not check for updates'}
-          </div>
-          <button className="btn btn-primary btn-lg" onClick={handleSkip}>
-            Launch Anyway
-          </button>
-        </div>
-      )}
-
       <div style={{
-        position: 'absolute', bottom: 24,
-        fontSize: 11, color: 'var(--text-muted)', opacity: 0.5,
+        background: 'var(--bg-card)',
+        border: '1px solid var(--border-color)',
+        borderRadius: 16,
+        boxShadow: 'var(--shadow-lg)',
+        padding: 36,
+        width: 380,
+        textAlign: 'center',
+        opacity: fadeOut ? 0 : 1,
+        transform: fadeOut ? 'scale(0.9)' : 'scale(1)',
+        transition: 'opacity 0.4s ease, transform 0.4s ease',
       }}>
-        Public Beta — Data is not permanent
+        <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--accent-primary)', marginBottom: 20 }}>
+          Server Creator
+        </div>
+
+        {phase === 'checking' && (
+          <>
+            <div className="spinner" style={{ width: 28, height: 28, margin: '8px auto 16px' }} />
+            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Checking for updates...</div>
+          </>
+        )}
+
+        {phase === 'available' && (
+          <>
+            <span className="material-symbols-outlined" style={{ fontSize: 40, color: 'var(--accent-warning)', marginBottom: 12 }}>
+              system_update
+            </span>
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Update Available</div>
+            <div style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 20 }}>
+              Server Creator v{version} is ready to download
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button className="btn btn-primary" onClick={handleDownload}>
+                <span className="material-symbols-outlined icon-sm">download</span>
+                Download Update
+              </button>
+              <button className="btn btn-ghost" onClick={() => setPhase('done')}>
+                Skip
+              </button>
+            </div>
+          </>
+        )}
+
+        {phase === 'downloading' && (
+          <div style={{ textAlign: 'center' }}>
+            <div className="spinner" style={{ width: 22, height: 22, margin: '8px auto 16px' }} />
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Downloading Update...</div>
+            <div style={{
+              width: '100%', height: 6, background: 'var(--bg-surface)',
+              borderRadius: 3, overflow: 'hidden',
+            }}>
+              <div style={{
+                width: `${progress}%`, height: '100%',
+                background: 'var(--accent-primary)',
+                borderRadius: 3, transition: 'width 0.3s ease',
+              }} />
+            </div>
+            <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 8 }}>{progress}%</div>
+          </div>
+        )}
+
+        {phase === 'downloaded' && (
+          <>
+            <span className="material-symbols-outlined" style={{ fontSize: 40, color: 'var(--accent-success)', marginBottom: 12 }}>
+              check_circle
+            </span>
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Update Ready</div>
+            <div style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 20 }}>
+              v{version} downloaded — restart to install
+            </div>
+            <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
+              <button className="btn btn-primary" onClick={handleInstall}>
+                <span className="material-symbols-outlined icon-sm">restart_alt</span>
+                Restart Now
+              </button>
+              <button className="btn btn-ghost" onClick={() => setPhase('done')}>
+                Later
+              </button>
+            </div>
+          </>
+        )}
+
+        {phase === 'error' && (
+          <>
+            <span className="material-symbols-outlined" style={{ fontSize: 40, color: 'var(--accent-error)', marginBottom: 12 }}>
+              error
+            </span>
+            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Update Check Failed</div>
+            <div style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 20 }}>
+              Could not check for updates
+            </div>
+            <button className="btn btn-primary" onClick={() => setPhase('done')}>
+              Launch Anyway
+            </button>
+          </>
+        )}
       </div>
     </div>
   );

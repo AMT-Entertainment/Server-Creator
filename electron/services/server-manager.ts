@@ -347,11 +347,14 @@ export class ServerManager {
     }
   }
 
-  onTerminalOutput(id: string, listener: (output: string) => void) {
+  onTerminalOutput(id: string, listener: (output: string) => void): () => void {
     const instance = this.servers.get(id);
-    if (instance) {
-      instance.terminalListeners.push(listener);
-    }
+    if (!instance) return () => {};
+    instance.terminalListeners.push(listener);
+    return () => {
+      const idx = instance.terminalListeners.indexOf(listener);
+      if (idx !== -1) instance.terminalListeners.splice(idx, 1);
+    };
   }
 
   onStatusChange(id: string, listener: (status: string, data?: any) => void) {

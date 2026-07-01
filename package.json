@@ -1,6 +1,6 @@
 {
   "name": "server-creator",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "description": "Server Creator by AMT Entertainment - Minecraft Server Manager",
   "main": "dist/electron/main.js",
   "scripts": {

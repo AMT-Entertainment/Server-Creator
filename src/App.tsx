@@ -48,60 +48,60 @@ function App() {
 
   return (
     <ToastProvider>
-    <div className="app-layout">
-      <aside className="sidebar">
-        <div className="sidebar-header">
-          <div className="sidebar-logo">Server Creator</div>
-          <div className="sidebar-subtitle">{t('app.subtitle')}</div>
-        </div>
-        <nav className="sidebar-nav">
-          <div
-            className={`sidebar-nav-item ${location.pathname === '/' ? 'active' : ''}`}
-            onClick={() => navigate('/')}
-          >
-            <span className="material-symbols-outlined icon">dns</span>
-            <span>{t('nav.home')}</span>
+      <div className="app-layout">
+        <aside className="sidebar">
+          <div className="sidebar-header">
+            <div className="sidebar-logo">Server Creator</div>
+            <div className="sidebar-subtitle">{t('app.subtitle')}</div>
           </div>
-          <div
-            className={`sidebar-nav-item ${isActive('/settings') ? 'active' : ''}`}
-            onClick={() => navigate('/settings')}
-          >
-            <span className="material-symbols-outlined icon">settings</span>
-            <span>{t('nav.settings')}</span>
-          </div>
-        </nav>
-        <div className="sidebar-footer">
-          {sidebarUpdate?.type === 'downloading' && (
-            <div style={{ fontSize: 11, padding: '4px 0', textAlign: 'center', color: 'var(--accent-info)' }}>
-              Updating... {sidebarUpdate.progress}%
+          <nav className="sidebar-nav">
+            <div
+              className={`sidebar-nav-item ${location.pathname === '/' ? 'active' : ''}`}
+              onClick={() => navigate('/')}
+            >
+              <span className="material-symbols-outlined icon">dns</span>
+              <span>{t('nav.home')}</span>
             </div>
-          )}
-          {sidebarUpdate?.type === 'downloaded' && (
-            <div style={{ fontSize: 11, padding: '4px 0', textAlign: 'center' }}>
-              <span style={{ color: 'var(--accent-success)' }}>Update ready</span>
-              <button className="btn btn-primary btn-sm" style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px' }}
-                onClick={() => { window.electronAPI?.installUpdate(); }}>
-                Restart
-              </button>
+            <div
+              className={`sidebar-nav-item ${isActive('/settings') ? 'active' : ''}`}
+              onClick={() => navigate('/settings')}
+            >
+              <span className="material-symbols-outlined icon">settings</span>
+              <span>{t('nav.settings')}</span>
             </div>
-          )}
-          <div style={{ fontSize: 10, color: 'var(--accent-warning)', textAlign: 'center', padding: '2px 0', opacity: 0.7 }}>
-            Public Beta - Data is not permanent
+          </nav>
+          <div className="sidebar-footer">
+            {sidebarUpdate?.type === 'downloading' && (
+              <div style={{ fontSize: 11, padding: '4px 0', textAlign: 'center', color: 'var(--accent-info)' }}>
+                Updating... {sidebarUpdate.progress}%
+              </div>
+            )}
+            {sidebarUpdate?.type === 'downloaded' && (
+              <div style={{ fontSize: 11, padding: '4px 0', textAlign: 'center' }}>
+                <span style={{ color: 'var(--accent-success)' }}>Update ready</span>
+                <button className="btn btn-primary btn-sm" style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px' }}
+                  onClick={() => { window.electronAPI?.installUpdate(); }}>
+                  Restart
+                </button>
+              </div>
+            )}
+            <div style={{ fontSize: 10, color: 'var(--accent-warning)', textAlign: 'center', padding: '2px 0', opacity: 0.7 }}>
+              Public Beta - Data is not permanent
+            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: '4px 0' }}>
+              AMT Entertainment v1.0.2
+            </div>
           </div>
-          <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: '4px 0' }}>
-            AMT Entertainment v1.0
-          </div>
-        </div>
-      </aside>
-      <main className="main-content">
-        <Routes>
-          <Route path="/" element={<Home servers={servers} onServersChange={refreshServers} />} />
-          <Route path="/setup" element={<SetupWizard onComplete={() => { refreshServers(); navigate('/'); }} />} />
-          <Route path="/server/:id" element={<ServerDetail onServersChange={refreshServers} />} />
-          <Route path="/settings" element={<Settings />} />
-        </Routes>
-      </main>
-    </div>
+        </aside>
+        <main className="main-content">
+          <Routes>
+            <Route path="/" element={<Home servers={servers} onServersChange={refreshServers} />} />
+            <Route path="/setup" element={<SetupWizard onComplete={() => { refreshServers(); navigate('/'); }} />} />
+            <Route path="/server/:id" element={<ServerDetail onServersChange={refreshServers} />} />
+            <Route path="/settings" element={<Settings />} />
+          </Routes>
+        </main>
+      </div>
     </ToastProvider>
   );
 }

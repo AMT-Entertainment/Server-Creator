@@ -32,39 +32,46 @@ export default function ServerDetail({ onServersChange }: ServerDetailProps) {
   useEffect(() => {
     if (!id) return;
     loadServer();
+    return () => {
+      if (window.electronAPI) {
+        window.electronAPI.unlistenTerminal(id).catch(() => {});
+      }
+    };
   }, [id]);
 
   const loadServer = async () => {
-    if (!id || !window.electronAPI) return;
-    const s = await window.electronAPI.getServer(id);
-    if (!s) {
-      navigate('/');
-      return;
+    if (!id || !window.electronAPI) { setLoading(false); return; }
+    try {
+      const s = await window.electronAPI.getServer(id);
+      if (!s) {
+        navigate('/');
+        return;
+      }
+      setServer(s);
+
+      const [statusResult, termOutput, logData, tStatus] = await Promise.all([
+        window.electronAPI.getServerStatus(id),
+        window.electronAPI.getTerminalOutput(id),
+        window.electronAPI.getLogs(id),
+        window.electronAPI.getTunnelStatus(id),
+      ]);
+      setStatus(statusResult.status);
+      setTerminalLines(termOutput);
+      setLogs(logData);
+      setTunnelStatus(tStatus.status);
+      setTunnelUrl(tStatus.url || '');
+
+      window.electronAPI.getPublicIp().then(setPublicIp).catch(() => {});
+      try { setLocalIp(window.electronAPI.getLocalIp()); } catch {}
+
+      if (statusResult.status === 'running' && !tStatus.url) {
+        startTunnelForServer();
+      }
+
+      await window.electronAPI.listenToTerminal(id);
+    } catch (e) {
+      console.error('Failed to load server:', e);
     }
-    setServer(s);
-
-    const statusResult = await window.electronAPI.getServerStatus(id);
-    setStatus(statusResult.status);
-
-    const termOutput = await window.electronAPI.getTerminalOutput(id);
-    setTerminalLines(termOutput);
-
-    const logData = await window.electronAPI.getLogs(id);
-    setLogs(logData);
-
-    const tStatus = await window.electronAPI.getTunnelStatus(id);
-    setTunnelStatus(tStatus.status);
-    setTunnelUrl(tStatus.url || '');
-
-    window.electronAPI.getPublicIp().then(setPublicIp).catch(() => {});
-    setLocalIp(window.electronAPI.getLocalIp());
-
-    if (statusResult.status === 'running' && !tStatus.url) {
-      startTunnelForServer();
-    }
-
-    await window.electronAPI.listenToTerminal(id);
-
     setLoading(false);
   };
 
@@ -112,12 +119,13 @@ export default function ServerDetail({ onServersChange }: ServerDetailProps) {
   };
 
   const getIpAddress = () => {
+    const p = server?.port || 25565;
     if (tunnelStatus === 'running' && tunnelUrl) {
-      return tunnelUrl.includes(':') ? tunnelUrl : `${tunnelUrl}:${server.port}`;
+      return tunnelUrl.includes(':') ? tunnelUrl : `${tunnelUrl}:${p}`;
     }
-    if (publicIp) return `${publicIp}:${server.port}`;
-    if (localIp) return `${localIp}:${server.port}`;
-    return server.port === 25565 ? 'localhost' : `localhost:${server.port}`;
+    if (publicIp) return `${publicIp}:${p}`;
+    if (localIp) return `${localIp}:${p}`;
+    return p === 25565 ? 'localhost' : `localhost:${p}`;
   };
 
   const copyIp = async () => {
@@ -245,50 +253,54 @@ export default function ServerDetail({ onServersChange }: ServerDetailProps) {
         borderBottom: '1px solid var(--border-color)',
         fontSize: 13,
       }}>
-        {tunnelStatus === 'running' && tunnelUrl ? (
-          <div className="flex items-center gap-4" style={{ color: 'var(--accent-success)' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>public</span>
-            <span style={{ fontWeight: 500 }}>
-              {tunnelUrl.includes(':') ? tunnelUrl : `${tunnelUrl}:${server.port}`}
-            </span>
-            <span className={`material-symbols-outlined copy-btn ${copied ? 'copied' : ''}`} onClick={copyIp}>content_copy</span>
-          </div>
-        ) : publicIp ? (
-          <div className="flex items-center gap-4" style={{ color: 'var(--accent-info)' }}>
-            <span className="material-symbols-outlined" style={{ fontSize: 16 }}>globe</span>
-            <span style={{ fontWeight: 500 }}>
-              {publicIp}:{server.port}
-            </span>
-            <span className={`material-symbols-outlined copy-btn ${copied ? 'copied' : ''}`} onClick={copyIp}>content_copy</span>
-          </div>
-        ) : localIp ? (
-          <div className="flex items-center gap-4">
-            <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--text-muted)' }}>cable</span>
-            <span style={{ fontWeight: 500 }}>
-              {localIp}:{server.port}
-            </span>
-            <span className={`material-symbols-outlined copy-btn ${copied ? 'copied' : ''}`} onClick={copyIp}>content_copy</span>
-          </div>
-        ) : (
-          <div className="flex items-center gap-4">
-            <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--text-muted)' }}>cable</span>
-            <span style={{ fontWeight: 500 }}>
-              {server.port === 25565 ? 'localhost' : `localhost:${server.port}`}
-            </span>
-            <span className={`material-symbols-outlined copy-btn ${copied ? 'copied' : ''}`} onClick={copyIp}>content_copy</span>
-          </div>
-        )}
+        {(() => {
+          const p = server?.port || 25565;
+          if (tunnelStatus === 'running' && tunnelUrl) {
+            return (
+              <div className="flex items-center gap-4" style={{ color: 'var(--accent-success)' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>public</span>
+                <span style={{ fontWeight: 500 }}>{tunnelUrl.includes(':') ? tunnelUrl : `${tunnelUrl}:${p}`}</span>
+                <span className={`material-symbols-outlined copy-btn ${copied ? 'copied' : ''}`} onClick={copyIp}>content_copy</span>
+              </div>
+            );
+          }
+          if (publicIp) {
+            return (
+              <div className="flex items-center gap-4" style={{ color: 'var(--accent-info)' }}>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>globe</span>
+                <span style={{ fontWeight: 500 }}>{publicIp}:{p}</span>
+                <span className={`material-symbols-outlined copy-btn ${copied ? 'copied' : ''}`} onClick={copyIp}>content_copy</span>
+              </div>
+            );
+          }
+          if (localIp) {
+            return (
+              <div className="flex items-center gap-4">
+                <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--text-muted)' }}>cable</span>
+                <span style={{ fontWeight: 500 }}>{localIp}:{p}</span>
+                <span className={`material-symbols-outlined copy-btn ${copied ? 'copied' : ''}`} onClick={copyIp}>content_copy</span>
+              </div>
+            );
+          }
+          return (
+            <div className="flex items-center gap-4">
+              <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--text-muted)' }}>cable</span>
+              <span style={{ fontWeight: 500 }}>{p === 25565 ? 'localhost' : `localhost:${p}`}</span>
+              <span className={`material-symbols-outlined copy-btn ${copied ? 'copied' : ''}`} onClick={copyIp}>content_copy</span>
+            </div>
+          );
+        })()}
         <div className="flex items-center gap-4">
           <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--text-muted)' }}>memory</span>
-          <span>{server.ram} GB</span>
+          <span>{server?.ram ?? '?'} GB</span>
         </div>
         <div className="flex items-center gap-4">
           <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--text-muted)' }}>groups</span>
-          <span>0/{server.maxPlayers}</span>
+          <span>0/{server?.maxPlayers ?? '?'}</span>
         </div>
         <div className="flex items-center gap-4">
           <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--text-muted)' }}>description</span>
-          <span>{server.loader} {server.version}</span>
+          <span>{server?.loader ?? '?'} {server?.version ?? ''}</span>
         </div>
       </div>
 

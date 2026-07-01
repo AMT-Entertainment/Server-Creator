@@ -17,6 +17,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   // Terminal
   getTerminalOutput: (id: string) => ipcRenderer.invoke('server:terminal:get', id),
   listenToTerminal: (id: string) => ipcRenderer.invoke('server:terminal:listen', id),
+  unlistenTerminal: (id: string) => ipcRenderer.invoke('server:terminal:unlisten', id),
 
   // Logs
   getLogs: (id: string) => ipcRenderer.invoke('server:logs:get', id),

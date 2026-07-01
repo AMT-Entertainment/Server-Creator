@@ -206,12 +206,26 @@ ipcMain.handle('server:status', (_event, id: string) => {
 });
 
 // Terminal output listener
+const terminalUnlisteners: Map<string, () => void> = new Map();
+
 ipcMain.handle('server:terminal:listen', (event, id: string) => {
-  serverManager.onTerminalOutput(id, (output: string) => {
+  const existing = terminalUnlisteners.get(id);
+  if (existing) existing();
+  const unsub = serverManager.onTerminalOutput(id, (output: string) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('terminal:output', id, output);
     }
   });
+  terminalUnlisteners.set(id, unsub);
+  return { success: true };
+});
+
+ipcMain.handle('server:terminal:unlisten', (event, id: string) => {
+  const existing = terminalUnlisteners.get(id);
+  if (existing) {
+    existing();
+    terminalUnlisteners.delete(id);
+  }
   return { success: true };
 });
 
