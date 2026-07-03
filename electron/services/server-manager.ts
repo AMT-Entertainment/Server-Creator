@@ -32,6 +32,7 @@ interface ServerInstance {
   statusListeners: ((status: string, data?: any) => void)[];
   terminalListeners: ((output: string) => void)[];
   safeStopRequested: boolean;
+  crashCount: number;
 }
 
 const SERVERS_DIR = path.join(os.homedir(), '.server-creator', 'servers');
@@ -72,6 +73,7 @@ export class ServerManager {
             statusListeners: [],
             terminalListeners: [],
             safeStopRequested: false,
+            crashCount: 0,
           });
         } catch (e) {
           console.error(`Failed to load server ${dir}:`, e);
@@ -127,6 +129,7 @@ export class ServerManager {
       statusListeners: [],
       terminalListeners: [],
       safeStopRequested: false,
+      crashCount: 0,
     });
 
     emit('done', 'Server created successfully!');
@@ -150,6 +153,7 @@ export class ServerManager {
     if (!instance) throw new Error('Server not found');
     if (instance.process) throw new Error('Server is already running');
 
+    instance.crashCount = 0;
     instance.status = 'starting';
     this.notifyStatus(id, 'starting');
 
@@ -201,11 +205,15 @@ export class ServerManager {
         instance.safeStopRequested = false;
       } else if (code !== 0) {
         instance.status = 'crashed';
-        this.notifyStatus(id, 'crashed', { exitCode: code });
-        this.appendLog(id, `Server crashed with exit code ${code}`);
+        instance.crashCount++;
+        this.notifyStatus(id, 'crashed', { exitCode: code, crashCount: instance.crashCount });
+        this.appendLog(id, `Server crashed with exit code ${code} (crash #${instance.crashCount})`);
 
-        if (instance.config.autoRestart && instance.status === 'crashed') {
-          setTimeout(() => this.startServer(id), 5000);
+        if (instance.config.autoRestart && instance.crashCount <= 3) {
+          setTimeout(() => {
+            instance.crashCount = 0;
+            this.startServer(id);
+          }, 5000);
         }
       } else {
         instance.status = 'stopped';
@@ -674,18 +682,14 @@ online-mode=true
 enable-status=true
 allow-flight=false
 server-port=${config.port}
-text-filtering-config=
 spawn-protection=16
 enable-rcon=false
 rcon.password=
 server-ip=
 max-world-size=29999984
-rcon.port=25575
 level-type=minecraft\\:normal
-enable-query=false
 allow-nether=true
 broadcast-console-to-ops=true
-enable-jmx-monitoring=false
 sync-chunk-writes=true
 op-permission-level=4
 prevent-proxy-connections=false
@@ -699,13 +703,10 @@ rate-limit=0
 hardcore=false
 white-list=false
 broadcast-rcon-to-ops=true
-enable-dynmap=false
 function-permission-level=2
 spawn-radius=10
 max-chained-neighbor-updates=1000000
 view-distance=10
-enable-jfr-monitoring=false
-text-filtering-config=
 `;
     fs.writeFileSync(path.join(serverDir, 'server.properties'), props);
   }

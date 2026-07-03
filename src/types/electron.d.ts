@@ -30,6 +30,7 @@ export interface SystemRam {
 
 export interface PortCheck {
   inUse: boolean;
+  reason?: string;
 }
 
 export interface ModrinthProject {
@@ -96,7 +97,7 @@ export interface ElectronAPI {
   onCreationProgress: (callback: (data: { step: string; progress: number; message: string }) => void) => () => void;
   onTerminalOutput: (callback: (id: string, output: string) => void) => () => void;
   onServerStatusChanged: (callback: (id: string, status: string, data?: any) => void) => () => void;
-  checkPort: (port: number) => Promise<PortCheck>;
+  checkPort: (port: number, excludeServerId?: string) => Promise<{ inUse: boolean; reason?: string }>;
   getVersions: (loader: string) => Promise<{ success: boolean; versions?: Array<{ version: string; stable: boolean }>; error?: string }>;
   neoToMc: (neoVersion: string) => Promise<{ mcVersion: string }>;
   getSystemRam: () => Promise<SystemRam>;
@@ -108,6 +109,9 @@ export interface ElectronAPI {
   getTunnelStatus: (serverId: string) => Promise<TunnelStatus>;
   getPublicIp: () => Promise<string | null>;
   getLocalIp: () => Promise<string | null>;
+  ensurePlayitAgent: () => Promise<{ success: boolean }>;
+  onTunnelReady: (callback: (data: { serverId: string; url: string }) => void) => () => void;
+  onTunnelStarting: (callback: (data: { serverId: string; port: number }) => void) => () => void;
   listFiles: (serverId: string, dirPath?: string) => Promise<FileEntry[]>;
   readFile: (serverId: string, filePath: string) => Promise<{ content: string; isBinary: boolean }>;
   writeFile: (serverId: string, filePath: string, content: string) => Promise<{ success: boolean }>;

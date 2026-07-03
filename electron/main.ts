@@ -104,6 +104,12 @@ app.on('before-quit', () => {
 
 // === IPC Handlers ===
 
+// Playit.gg tunneling
+ipcMain.handle('tunnel:playit:ensure', async () => {
+  const installed = await tunnelingService.ensurePlayitAgent();
+  return { success: installed };
+});
+
 // Server list
 ipcMain.handle('servers:list', () => {
   return serverManager.listServers();
@@ -148,8 +154,15 @@ ipcMain.handle('server:start', async (_event, id: string) => {
       }
     }
     await serverManager.startServer(id);
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send('server:tunnel:starting', { serverId: id, port });
+    }
     if (port) {
-      tunnelingService.startTunnel(id, port).catch(() => {});
+      tunnelingService.startTunnel(id, port).then(url => {
+        if (url && mainWindow && !mainWindow.isDestroyed()) {
+          mainWindow.webContents.send('server:tunnel:ready', { serverId: id, url });
+        }
+      }).catch(() => {});
     }
     return { success: true };
   } catch (err: any) {

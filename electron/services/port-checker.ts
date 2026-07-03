@@ -15,7 +15,7 @@ export class PortChecker {
         server.close();
         resolve(false);
       });
-      server.listen(port, '127.0.0.1');
+      server.listen(port, '0.0.0.0');
     });
   }
 

@@ -48,7 +48,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
   const [progressSteps, setProgressSteps] = useState<ProgressStep[]>([]);
   const progressUnsubRef = useRef<(() => void) | null>(null);
 
-  const totalSteps = 7;
+  const totalSteps = 6;
 
   useEffect(() => {
     if (window.electronAPI) {

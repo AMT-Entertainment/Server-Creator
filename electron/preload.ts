@@ -63,6 +63,17 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getTunnelStatus: (serverId: string) => ipcRenderer.invoke('tunnel:status', serverId),
   getPublicIp: () => ipcRenderer.invoke('tunnel:public-ip'),
   getLocalIp: () => ipcRenderer.invoke('tunnel:local-ip'),
+  ensurePlayitAgent: () => ipcRenderer.invoke('tunnel:playit:ensure'),
+  onTunnelReady: (callback: (data: { serverId: string; url: string }) => void) => {
+    const handler = (_event: any, data: { serverId: string; url: string }) => callback(data);
+    ipcRenderer.on('server:tunnel:ready', handler);
+    return () => ipcRenderer.removeListener('server:tunnel:ready', handler);
+  },
+  onTunnelStarting: (callback: (data: { serverId: string; port: number }) => void) => {
+    const handler = (_event: any, data: { serverId: string; port: number }) => callback(data);
+    ipcRenderer.on('server:tunnel:starting', handler);
+    return () => ipcRenderer.removeListener('server:tunnel:starting', handler);
+  },
 
   // File management
   listFiles: (serverId: string, dirPath?: string) => ipcRenderer.invoke('files:list', serverId, dirPath),
