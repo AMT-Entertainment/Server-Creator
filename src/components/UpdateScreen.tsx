@@ -18,7 +18,10 @@ export default function UpdateScreen({ onComplete }: UpdateScreenProps) {
       return;
     }
 
+    let stateReceived = false;
+
     const unsub = window.electronAPI.onUpdateState((state) => {
+      stateReceived = true;
       if (state.status === 'available') {
         setVersion(state.version || '');
         setPhase('available');
@@ -39,8 +42,8 @@ export default function UpdateScreen({ onComplete }: UpdateScreenProps) {
     window.electronAPI.checkForUpdates();
 
     const fallback = setTimeout(() => {
-      setPhase(prev => prev === 'checking' ? 'done' : prev);
-    }, 10000);
+      if (!stateReceived) setPhase('done');
+    }, 12000);
 
     return () => {
       unsub();

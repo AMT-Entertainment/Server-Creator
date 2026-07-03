@@ -124,7 +124,12 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on('error', (err) => {
-    updateState = { status: 'error', error: err.message };
+    const msg = (err.message || '').toLowerCase();
+    if (msg.includes('404') || msg.includes('not found') || msg.includes('could not find') || msg.includes('network') || msg.includes('econnrefused')) {
+      updateState = { status: 'idle' };
+    } else {
+      updateState = { status: 'error', error: err.message };
+    }
     sendUpdateState();
   });
 }
@@ -134,7 +139,12 @@ function checkForUpdates() {
   updateState = { status: 'checking' };
   sendUpdateState();
   autoUpdater.checkForUpdates().catch((err) => {
-    updateState = { status: 'error', error: err.message || 'Check failed' };
+    const msg = (err.message || '').toLowerCase();
+    if (msg.includes('404') || msg.includes('not found') || msg.includes('could not find') || msg.includes('network') || msg.includes('econnrefused')) {
+      updateState = { status: 'idle' };
+    } else {
+      updateState = { status: 'error', error: err.message };
+    }
     sendUpdateState();
   });
 }
