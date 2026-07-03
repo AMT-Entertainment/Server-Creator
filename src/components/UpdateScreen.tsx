@@ -1,68 +1,64 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 
 interface UpdateScreenProps {
   onComplete: () => void;
 }
 
-type Phase = 'checking' | 'available' | 'downloading' | 'downloaded' | 'error' | 'done';
-
 export default function UpdateScreen({ onComplete }: UpdateScreenProps) {
-  const [phase, setPhase] = useState<Phase>('checking');
+  const [phase, setPhase] = useState<'checking' | 'available' | 'downloading' | 'downloaded' | 'error' | 'done'>('checking');
   const [version, setVersion] = useState('');
   const [progress, setProgress] = useState(0);
+  const [errorMsg, setErrorMsg] = useState('');
   const [fadeOut, setFadeOut] = useState(false);
+  const doneRef = useRef(false);
 
   useEffect(() => {
     if (!window.electronAPI) {
       setPhase('done');
       return;
     }
-    const unsub1 = window.electronAPI.onUpdateAvailable((v) => {
-      setVersion(v);
-      setPhase('available');
-    });
-    const unsub2 = window.electronAPI.onUpdateNotAvailable(() => {
-      setPhase('done');
-    });
-    const unsub3 = window.electronAPI.onUpdateProgress((p) => {
-      setProgress(p);
-      setPhase('downloading');
-    });
-    const unsub4 = window.electronAPI.onUpdateDownloaded((v) => {
-      setVersion(v);
-      setPhase('downloaded');
-    });
-    const unsub5 = window.electronAPI.onUpdateError((_err) => {
-      setPhase('error');
+
+    const unsub = window.electronAPI.onUpdateState((state) => {
+      if (state.status === 'available') {
+        setVersion(state.version || '');
+        setPhase('available');
+      } else if (state.status === 'idle') {
+        setPhase('done');
+      } else if (state.status === 'downloading') {
+        setProgress(state.progress || 0);
+        setPhase('downloading');
+      } else if (state.status === 'downloaded') {
+        setVersion(state.version || '');
+        setPhase('downloaded');
+      } else if (state.status === 'error') {
+        setErrorMsg(state.error || 'Update check failed');
+        setPhase('error');
+      }
     });
 
     window.electronAPI.checkForUpdates();
+
     const fallback = setTimeout(() => {
       setPhase(prev => prev === 'checking' ? 'done' : prev);
-    }, 8000);
+    }, 10000);
 
     return () => {
-      unsub1(); unsub2(); unsub3(); unsub4(); unsub5();
+      unsub();
       clearTimeout(fallback);
     };
   }, []);
 
   useEffect(() => {
-    if (phase === 'done') {
+    if (phase === 'done' && !doneRef.current) {
+      doneRef.current = true;
       setFadeOut(true);
       const t = setTimeout(onComplete, 400);
       return () => clearTimeout(t);
     }
   }, [phase, onComplete]);
 
-  const handleDownload = () => {
-    window.electronAPI?.downloadUpdate();
-    setPhase('downloading');
-  };
-
-  const handleInstall = () => {
-    window.electronAPI?.installUpdate();
-  };
+  const handleDownload = () => window.electronAPI?.downloadUpdate();
+  const handleInstall = () => window.electronAPI?.installUpdate();
 
   return (
     <div style={{
@@ -162,7 +158,7 @@ export default function UpdateScreen({ onComplete }: UpdateScreenProps) {
             </span>
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Update Check Failed</div>
             <div style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 20 }}>
-              Could not check for updates
+              {errorMsg}
             </div>
             <button className="btn btn-primary" onClick={() => setPhase('done')}>
               Launch Anyway

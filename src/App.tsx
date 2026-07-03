@@ -29,13 +29,16 @@ function App() {
 
   useEffect(() => {
     if (!window.electronAPI) return;
-    const unsub1 = window.electronAPI.onUpdateProgress((p) => {
-      setSidebarUpdate({ type: 'downloading', progress: Math.round(p) });
+    const unsub = window.electronAPI.onUpdateState((state) => {
+      if (state.status === 'downloading') {
+        setSidebarUpdate({ type: 'downloading', progress: state.progress });
+      } else if (state.status === 'downloaded') {
+        setSidebarUpdate({ type: 'downloaded' });
+      } else if (state.status === 'idle' || state.status === 'error') {
+        setSidebarUpdate(null);
+      }
     });
-    const unsub2 = window.electronAPI.onUpdateDownloaded((v) => {
-      setSidebarUpdate({ type: 'downloaded' });
-    });
-    return () => { unsub1(); unsub2(); };
+    return unsub;
   }, []);
 
   const refreshServers = () => loadServers();

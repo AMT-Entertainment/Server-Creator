@@ -45,42 +45,73 @@ function createWindow() {
   });
 }
 
-app.whenReady().then(() => {
-  createWindow();
+let updateCheckInterval: NodeJS.Timeout | null = null;
+let updateState: {
+  status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error';
+  version?: string;
+  progress?: number;
+  error?: string;
+} = { status: 'idle' };
 
+function sendUpdateState() {
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update:state', updateState);
+  }
+}
+
+function setupAutoUpdater() {
   autoUpdater.logger = console;
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
+  autoUpdater.allowPrerelease = false;
+
+  autoUpdater.on('checking-for-update', () => {
+    updateState = { status: 'checking' };
+    sendUpdateState();
+  });
 
   autoUpdater.on('update-available', (info) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update:available', info.version);
-    }
+    updateState = { status: 'available', version: info.version };
+    sendUpdateState();
   });
 
   autoUpdater.on('update-not-available', () => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update:not-available');
-    }
+    updateState = { status: 'idle' };
+    sendUpdateState();
   });
 
   autoUpdater.on('download-progress', (progress) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update:progress', progress.percent);
-    }
+    updateState = { ...updateState, status: 'downloading', progress: Math.round(progress.percent) };
+    sendUpdateState();
   });
 
   autoUpdater.on('update-downloaded', (info) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update:downloaded', info.version);
-    }
+    updateState = { status: 'downloaded', version: info.version };
+    sendUpdateState();
   });
 
   autoUpdater.on('error', (err) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('update:error', err.message);
-    }
+    updateState = { status: 'error', error: err.message };
+    sendUpdateState();
   });
+}
+
+function checkForUpdates() {
+  if (updateState.status === 'checking' || updateState.status === 'downloading' || updateState.status === 'downloaded') return;
+  updateState = { status: 'checking' };
+  sendUpdateState();
+  autoUpdater.checkForUpdates().catch((err) => {
+    updateState = { status: 'error', error: err.message || 'Check failed' };
+    sendUpdateState();
+  });
+}
+
+app.whenReady().then(() => {
+  createWindow();
+  setupAutoUpdater();
+
+  checkForUpdates();
+  updateCheckInterval = setInterval(checkForUpdates, 3600000);
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -378,12 +409,26 @@ ipcMain.handle('server:config:set', (_event, serverId: string, config: any) => {
 
 // Auto-update
 ipcMain.handle('update:check', () => {
-  autoUpdater.checkForUpdates().catch(() => {});
+  checkForUpdates();
   return { success: true };
 });
 
+ipcMain.handle('update:get-state', () => {
+  return updateState;
+});
+
 ipcMain.handle('update:download', () => {
-  autoUpdater.downloadUpdate().catch(() => {});
+  if (updateState.status === 'available' && updateState.version) {
+    updateState = { status: 'downloading', version: updateState.version, progress: 0 };
+    sendUpdateState();
+    autoUpdater.downloadUpdate().then(() => {
+      updateState = { status: 'downloaded', version: updateState.version };
+      sendUpdateState();
+    }).catch((err) => {
+      updateState = { status: 'error', version: updateState.version, error: err.message };
+      sendUpdateState();
+    });
+  }
   return { success: true };
 });
 

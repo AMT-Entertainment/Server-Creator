@@ -123,11 +123,8 @@ export interface ElectronAPI {
   checkForUpdates: () => Promise<{ success: boolean }>;
   downloadUpdate: () => Promise<{ success: boolean }>;
   installUpdate: () => Promise<{ success: boolean }>;
-  onUpdateAvailable: (callback: (version: string) => void) => () => void;
-  onUpdateNotAvailable: (callback: () => void) => () => void;
-  onUpdateProgress: (callback: (percent: number) => void) => () => void;
-  onUpdateDownloaded: (callback: (version: string) => void) => () => void;
-  onUpdateError: (callback: (error: string) => void) => () => void;
+  getUpdateState: () => Promise<{ status: string; version?: string; progress?: number; error?: string }>;
+  onUpdateState: (callback: (state: { status: string; version?: string; progress?: number; error?: string }) => void) => () => void;
   openFileDialog: (options: any) => Promise<any>;
   saveFileDialog: (options: any) => Promise<any>;
 }

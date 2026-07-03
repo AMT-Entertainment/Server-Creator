@@ -93,30 +93,11 @@ contextBridge.exposeInMainWorld('electronAPI', {
   checkForUpdates: () => ipcRenderer.invoke('update:check'),
   downloadUpdate: () => ipcRenderer.invoke('update:download'),
   installUpdate: () => ipcRenderer.invoke('update:install'),
-  onUpdateAvailable: (callback: (version: string) => void) => {
-    const handler = (_event: any, version: string) => callback(version);
-    ipcRenderer.on('update:available', handler);
-    return () => ipcRenderer.removeListener('update:available', handler);
-  },
-  onUpdateNotAvailable: (callback: () => void) => {
-    const handler = () => callback();
-    ipcRenderer.on('update:not-available', handler);
-    return () => ipcRenderer.removeListener('update:not-available', handler);
-  },
-  onUpdateProgress: (callback: (percent: number) => void) => {
-    const handler = (_event: any, percent: number) => callback(percent);
-    ipcRenderer.on('update:progress', handler);
-    return () => ipcRenderer.removeListener('update:progress', handler);
-  },
-  onUpdateDownloaded: (callback: (version: string) => void) => {
-    const handler = (_event: any, version: string) => callback(version);
-    ipcRenderer.on('update:downloaded', handler);
-    return () => ipcRenderer.removeListener('update:downloaded', handler);
-  },
-  onUpdateError: (callback: (error: string) => void) => {
-    const handler = (_event: any, error: string) => callback(error);
-    ipcRenderer.on('update:error', handler);
-    return () => ipcRenderer.removeListener('update:error', handler);
+  getUpdateState: () => ipcRenderer.invoke('update:get-state'),
+  onUpdateState: (callback: (state: { status: string; version?: string; progress?: number; error?: string }) => void) => {
+    const handler = (_event: any, state: { status: string; version?: string; progress?: number; error?: string }) => callback(state);
+    ipcRenderer.on('update:state', handler);
+    return () => ipcRenderer.removeListener('update:state', handler);
   },
 
   // Dialog
