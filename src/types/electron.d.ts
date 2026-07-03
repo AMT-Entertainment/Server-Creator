@@ -110,8 +110,14 @@ export interface ElectronAPI {
   getPublicIp: () => Promise<string | null>;
   getLocalIp: () => Promise<string | null>;
   ensurePlayitAgent: () => Promise<{ success: boolean }>;
+  getPlayitClaimUrl: () => Promise<{ url: string | null }>;
   onTunnelReady: (callback: (data: { serverId: string; url: string }) => void) => () => void;
   onTunnelStarting: (callback: (data: { serverId: string; port: number }) => void) => () => void;
+  onPlayitClaim: (callback: (data: { url: string }) => void) => () => void;
+
+  // Auto-start
+  getAutoStart: () => Promise<{ autoStart: boolean; autoStartServers: string[]; loginItemEnabled: boolean }>;
+  setAutoStart: (settings: { autoStart: boolean; autoStartServers: string[] }) => Promise<{ success: boolean }>;
   listFiles: (serverId: string, dirPath?: string) => Promise<FileEntry[]>;
   readFile: (serverId: string, filePath: string) => Promise<{ content: string; isBinary: boolean }>;
   writeFile: (serverId: string, filePath: string, content: string) => Promise<{ success: boolean }>;

@@ -64,6 +64,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getPublicIp: () => ipcRenderer.invoke('tunnel:public-ip'),
   getLocalIp: () => ipcRenderer.invoke('tunnel:local-ip'),
   ensurePlayitAgent: () => ipcRenderer.invoke('tunnel:playit:ensure'),
+  getPlayitClaimUrl: () => ipcRenderer.invoke('tunnel:playit:claim-url'),
   onTunnelReady: (callback: (data: { serverId: string; url: string }) => void) => {
     const handler = (_event: any, data: { serverId: string; url: string }) => callback(data);
     ipcRenderer.on('server:tunnel:ready', handler);
@@ -74,6 +75,15 @@ contextBridge.exposeInMainWorld('electronAPI', {
     ipcRenderer.on('server:tunnel:starting', handler);
     return () => ipcRenderer.removeListener('server:tunnel:starting', handler);
   },
+  onPlayitClaim: (callback: (data: { url: string }) => void) => {
+    const handler = (_event: any, data: { url: string }) => callback(data);
+    ipcRenderer.on('playit:claim', handler);
+    return () => ipcRenderer.removeListener('playit:claim', handler);
+  },
+
+  // Auto-start
+  getAutoStart: () => ipcRenderer.invoke('autostart:get'),
+  setAutoStart: (settings: { autoStart: boolean; autoStartServers: string[] }) => ipcRenderer.invoke('autostart:set', settings),
 
   // File management
   listFiles: (serverId: string, dirPath?: string) => ipcRenderer.invoke('files:list', serverId, dirPath),

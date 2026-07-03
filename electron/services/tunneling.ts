@@ -14,7 +14,6 @@ interface TunnelInstance {
   error?: string;
   process?: ChildProcess | null;
   upnpClient?: any;
-  playitPid?: number;
   reconnectTimer?: NodeJS.Timeout | null;
 }
 
@@ -26,10 +25,10 @@ const PLAYIT_AGENT_VERSION = '0.15.0';
 
 export class TunnelingService {
   private tunnels: Map<string, TunnelInstance> = new Map();
-  private playitRunning = false;
   private playitProcess: ChildProcess | null = null;
   private playitUrl: string | null = null;
   private playitServerId: string | null = null;
+  private playitClaimUrl: string | null = null;
 
   async ensurePlayitAgent(): Promise<boolean> {
     try {
@@ -61,22 +60,31 @@ export class TunnelingService {
     }
   }
 
+  getPlayitClaimUrl(): string | null {
+    return this.playitClaimUrl;
+  }
+
   async startPlayitTunnel(serverId: string, port: number): Promise<string | null> {
     const instance = this.tunnels.get(serverId)!;
     const installed = await this.ensurePlayitAgent();
     if (!installed) return null;
 
+    if (this.playitProcess) {
+      try { this.playitProcess.kill('SIGTERM'); } catch {}
+      this.playitProcess = null;
+    }
+
     return new Promise((resolve) => {
       let done = false;
       const timeout = setTimeout(() => {
         if (!done) { done = true; resolve(null); }
-      }, 30000);
+      }, 35000);
 
       const configPath = path.join(PLAYIT_DIR, 'config.yml');
-      const configYml = `tunnels:\n  server-creator-${serverId}:\n    proto: tcp\n    addr: 127.0.0.1:${port}\n`;
+      const configYml = `tunnels:\n  mc-${serverId}:\n    proto: tcp\n    addr: 127.0.0.1:${port}\n`;
       fs.writeFileSync(configPath, configYml);
 
-      const proc = spawn(PLAYIT_BIN, ['--secret', '', '--config', configPath], {
+      const proc = spawn(PLAYIT_BIN, ['--config', configPath], {
         stdio: ['ignore', 'pipe', 'pipe'],
         env: { ...process.env, HOME: os.homedir() },
       });
@@ -84,6 +92,7 @@ export class TunnelingService {
       instance.process = proc;
       this.playitProcess = proc;
       this.playitServerId = serverId;
+      this.playitClaimUrl = null;
 
       let outputBuffer = '';
 
@@ -92,27 +101,40 @@ export class TunnelingService {
         const text = data.toString();
         outputBuffer += text;
 
-        const urlMatch = outputBuffer.match(/([a-zA-Z0-9][a-zA-Z0-9.-]+\.[a-z]+:\d+)/);
-        if (urlMatch) {
+        const assignMatch = outputBuffer.match(/assigned\s+(?:tcp|udp):\/\/([^\s]+)/i)
+          || outputBuffer.match(/tunnel\s+(?:tcp|udp):\/\/([^\s]+)/i)
+          || outputBuffer.match(/(\d+\.\d+\.\d+\.\d+:\d+)/);
+        if (assignMatch) {
           clearTimeout(timeout);
           done = true;
           instance.status = 'running';
-          instance.url = urlMatch[1];
-          this.playitUrl = urlMatch[1];
+          instance.url = assignMatch[1].replace(/^(?:tcp|udp):\/\//, '');
+          this.playitUrl = instance.url;
           this.storeUrl(serverId, instance.url);
           resolve(instance.url);
           return;
         }
 
-        if (text.includes('claim') && text.includes('playit')) {
-          const claimMatch = text.match(/https?:\/\/[^\s]+/);
-          if (claimMatch) {
+        const urlPattern = outputBuffer.match(/([a-zA-Z0-9][a-zA-Z0-9.-]+\.(?:playit|gg|io|com|link)[^\s]*)/i);
+        if (urlPattern) {
+          const addr = urlPattern[1].replace(/^https?:\/\//, '').replace(/\/.*$/, '');
+          if (addr.includes(':') || addr.includes('.')) {
             clearTimeout(timeout);
             done = true;
             instance.status = 'running';
-            instance.url = `${this.getLocalIp() || 'localhost'}:${port}`;
+            instance.url = addr;
+            this.playitUrl = addr;
             this.storeUrl(serverId, instance.url);
             resolve(instance.url);
+            return;
+          }
+        }
+
+        const claimUrl = text.match(/https:\/\/playit\.gg\/claim\/[^\s]+/);
+        if (claimUrl) {
+          this.playitClaimUrl = claimUrl[0];
+          if (mainWindowCallback) {
+            mainWindowCallback('playit:claim', { url: claimUrl[0] });
           }
         }
       };
@@ -126,11 +148,7 @@ export class TunnelingService {
         if (!done) {
           clearTimeout(timeout);
           done = true;
-          if (code === 0 && instance.url) {
-            resolve(instance.url);
-          } else {
-            resolve(null);
-          }
+          resolve(instance.url);
         }
       });
 
@@ -207,8 +225,8 @@ export class TunnelingService {
     const pinggyUrl = await this.tryPinggy(serverId, port);
     if (pinggyUrl) return pinggyUrl;
 
-    const localhostRunUrl = await this.tryLocalhostRun(serverId, port);
-    if (localhostRunUrl) return localhostRunUrl;
+    const serveoUrl = await this.tryServeo(serverId, port);
+    if (serveoUrl) return serveoUrl;
 
     const upnpUrl = await this.tryUpnp(serverId, port);
     if (upnpUrl) return upnpUrl;
@@ -222,7 +240,7 @@ export class TunnelingService {
     }
 
     instance.status = 'error';
-    instance.error = 'All tunneling methods failed. Your friends can connect via LAN or your local IP.';
+    instance.error = 'All tunneling methods failed.';
     return '';
   }
 
@@ -254,7 +272,7 @@ export class TunnelingService {
           }
         }
       }
-    }, 30000);
+    }, 45000);
   }
 
   private async tryPinggy(serverId: string, port: number): Promise<string | null> {
@@ -273,7 +291,7 @@ export class TunnelingService {
       let done = false;
       const timeout = setTimeout(() => {
         if (!done) { done = true; resolve(null); }
-      }, 15000);
+      }, 20000);
 
       const proc = spawn('ssh', [
         '-p', '443',
@@ -291,7 +309,7 @@ export class TunnelingService {
         if (done) return;
         const text = data.toString();
 
-        const m = text.match(/tcp:\/\/([a-zA-Z0-9_.-]+):(\d+)/);
+        const m = text.match(/(?:tcp|http):\/\/([a-zA-Z0-9_.-]+):(\d+)/);
         if (m) {
           clearTimeout(timeout);
           done = true;
@@ -302,18 +320,20 @@ export class TunnelingService {
           return;
         }
 
-        const portLine = text.match(/Port\s+(\d+)\s+is/i) || text.match(/forwarding.*?:(\d+)/i);
-        if (portLine && host !== 'a.pinggy.io') {
+        const portMatch = text.match(/Port\s+(\d+)\s+(?:is\s+)?(?:forwarded|open)/i)
+          || text.match(/forwarded\s+(?:port\s+)?(\d+)/i)
+          || text.match(/listening\s+(?:on\s+)?(?:port\s+)?(\d+)/i);
+        if (portMatch) {
           clearTimeout(timeout);
           done = true;
           instance.status = 'running';
-          instance.url = `${host}:${portLine[1]}`;
+          instance.url = `${host}:${portMatch[1]}`;
           this.storeUrl(serverId, instance.url);
           resolve(instance.url);
           return;
         }
 
-        if (text.includes('already in use') || text.includes('denied') || text.includes('refused')) {
+        if (text.includes('already in use') || text.includes('denied') || text.includes('refused') || text.includes('failed')) {
           clearTimeout(timeout);
           done = true;
           resolve(null);
@@ -332,7 +352,7 @@ export class TunnelingService {
     });
   }
 
-  private async tryLocalhostRun(serverId: string, port: number): Promise<string | null> {
+  private async tryServeo(serverId: string, port: number): Promise<string | null> {
     const instance = this.tunnels.get(serverId)!;
     return new Promise((resolve) => {
       let done = false;
@@ -346,7 +366,8 @@ export class TunnelingService {
         '-o', 'ServerAliveInterval=30',
         '-o', 'ConnectTimeout=10',
         '-R', `80:localhost:${port}`,
-        'nokey@localhost.run',
+        '-R', `${port}:localhost:${port}`,
+        'serveo.net',
       ], { stdio: ['ignore', 'pipe', 'pipe'] });
 
       instance.process = proc;
@@ -355,18 +376,32 @@ export class TunnelingService {
         if (done) return;
         const text = data.toString();
 
-        const m = text.match(/(https?:\/\/[a-zA-Z0-9_.-]+\.(?:localhost\.run|serveo\.net|ngrok\.io))/);
+        const m = text.match(/(?:http|tcp):\/\/([a-zA-Z0-9_.-]+\.(?:serveo\.net))(?::(\d+))?/);
         if (m) {
           clearTimeout(timeout);
           done = true;
           instance.status = 'running';
-          instance.url = m[1].replace(/^https?:\/\//, '');
+          const addr = m[1];
+          const p = m[2] || port.toString();
+          instance.url = `${addr}:${p}`;
           this.storeUrl(serverId, instance.url);
           resolve(instance.url);
           return;
         }
 
-        if (text.includes('denied') || text.includes('refused')) {
+        const fwdMatch = text.match(/Forwarding\s+(?:TCP\s+)?(?:port\s+)?(\d+)/i)
+          || text.match(/(\d+):\d+\.\d+\.\d+\.\d+:\d+/);
+        if (fwdMatch) {
+          clearTimeout(timeout);
+          done = true;
+          instance.status = 'running';
+          instance.url = `serveo.net:${fwdMatch[1]}`;
+          this.storeUrl(serverId, instance.url);
+          resolve(instance.url);
+          return;
+        }
+
+        if (text.includes('denied') || text.includes('refused') || text.includes('failed')) {
           clearTimeout(timeout);
           done = true;
           resolve(null);
@@ -389,7 +424,7 @@ export class TunnelingService {
     const instance = this.tunnels.get(serverId)!;
     return new Promise((resolve) => {
       let done = false;
-      const t = setTimeout(() => { if (!done) { done = true; resolve(null); } }, 8000);
+      const t = setTimeout(() => { if (!done) { done = true; resolve(null); } }, 10000);
 
       try {
         const client = natUpnp.createClient();
@@ -518,4 +553,10 @@ export class TunnelingService {
       doRequest(url);
     });
   }
+}
+
+let mainWindowCallback: ((channel: string, data: any) => void) | null = null;
+
+export function setMainWindowCallback(cb: ((channel: string, data: any) => void) | null) {
+  mainWindowCallback = cb;
 }

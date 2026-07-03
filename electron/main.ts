@@ -1,4 +1,4 @@
-import { app, BrowserWindow, ipcMain, dialog } from 'electron';
+import { app, BrowserWindow, ipcMain, dialog, Notification } from 'electron';
 import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import * as fs from 'fs';
@@ -6,7 +6,7 @@ import * as os from 'os';
 import { ServerManager } from './services/server-manager';
 import { ModrinthAPI } from './services/modrinth-api';
 import { PortChecker } from './services/port-checker';
-import { TunnelingService } from './services/tunneling';
+import { TunnelingService, setMainWindowCallback } from './services/tunneling';
 import { FileManager } from './services/file-manager';
 import { VersionFetcher } from './services/version-fetcher';
 
@@ -17,6 +17,39 @@ const portChecker = new PortChecker();
 const tunnelingService = new TunnelingService();
 const fileManager = new FileManager();
 const versionFetcher = new VersionFetcher();
+
+const CONFIG_PATH = path.join(os.homedir(), '.server-creator', 'config.json');
+
+function loadConfig(): { autoStart: boolean; autoStartServers: string[] } {
+  try {
+    if (fs.existsSync(CONFIG_PATH)) {
+      return JSON.parse(fs.readFileSync(CONFIG_PATH, 'utf-8'));
+    }
+  } catch {}
+  return { autoStart: false, autoStartServers: [] };
+}
+
+function saveConfig(config: { autoStart: boolean; autoStartServers: string[] }) {
+  try {
+    if (!fs.existsSync(path.dirname(CONFIG_PATH))) {
+      fs.mkdirSync(path.dirname(CONFIG_PATH), { recursive: true });
+    }
+    fs.writeFileSync(CONFIG_PATH, JSON.stringify(config, null, 2));
+  } catch {}
+}
+
+function showNotification(title: string, body: string) {
+  if (Notification.isSupported()) {
+    const notif = new Notification({ title, body });
+    notif.on('click', () => {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        mainWindow.show();
+        mainWindow.focus();
+      }
+    });
+    notif.show();
+  }
+}
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -106,12 +139,51 @@ function checkForUpdates() {
   });
 }
 
+function autoStartServers() {
+  const config = loadConfig();
+  if (!config.autoStart) return;
+
+  if (config.autoStartServers.length > 0) {
+    showNotification('Server Creator', `Auto-starting ${config.autoStartServers.length} server(s)...`);
+  }
+
+  for (const serverId of config.autoStartServers) {
+    const server = serverManager.getServer(serverId);
+    if (server) {
+      setTimeout(async () => {
+        try {
+          await serverManager.startServer(serverId);
+          showNotification('Server Started', `${server.name} has started automatically`);
+          const port = server.port;
+          if (port && server.tunnelEnabled) {
+            tunnelingService.startTunnel(serverId, port).then(url => {
+              if (url && mainWindow && !mainWindow.isDestroyed()) {
+                mainWindow.webContents.send('server:tunnel:ready', { serverId, url });
+              }
+            }).catch(() => {});
+          }
+        } catch (err: any) {
+          showNotification('Server Failed', `${server.name} failed to auto-start: ${err.message}`);
+        }
+      }, 3000);
+    }
+  }
+}
+
 app.whenReady().then(() => {
   createWindow();
   setupAutoUpdater();
 
+  setMainWindowCallback((channel, data) => {
+    if (mainWindow && !mainWindow.isDestroyed()) {
+      mainWindow.webContents.send(channel, data);
+    }
+  });
+
   checkForUpdates();
   updateCheckInterval = setInterval(checkForUpdates, 3600000);
+
+  autoStartServers();
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -135,10 +207,33 @@ app.on('before-quit', () => {
 
 // === IPC Handlers ===
 
+// Auto-start
+ipcMain.handle('autostart:get', () => {
+  const config = loadConfig();
+  return {
+    autoStart: config.autoStart,
+    autoStartServers: config.autoStartServers,
+    loginItemEnabled: app.getLoginItemSettings().openAtLogin,
+  };
+});
+
+ipcMain.handle('autostart:set', (_event, settings: { autoStart: boolean; autoStartServers: string[] }) => {
+  const config = loadConfig();
+  config.autoStart = settings.autoStart;
+  config.autoStartServers = settings.autoStartServers;
+  saveConfig(config);
+  app.setLoginItemSettings({ openAtLogin: settings.autoStart });
+  return { success: true };
+});
+
 // Playit.gg tunneling
 ipcMain.handle('tunnel:playit:ensure', async () => {
   const installed = await tunnelingService.ensurePlayitAgent();
   return { success: installed };
+});
+
+ipcMain.handle('tunnel:playit:claim-url', () => {
+  return { url: tunnelingService.getPlayitClaimUrl() };
 });
 
 // Server list
@@ -184,6 +279,7 @@ ipcMain.handle('server:start', async (_event, id: string) => {
         return { success: false, error: `Port ${port} is already in use` };
       }
     }
+    const server = serverManager.getServer(id);
     await serverManager.startServer(id);
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('server:tunnel:starting', { serverId: id, port });
@@ -195,6 +291,7 @@ ipcMain.handle('server:start', async (_event, id: string) => {
         }
       }).catch(() => {});
     }
+    showNotification(`Server Started`, `${server?.name || id} is now running on port ${port}`);
     return { success: true };
   } catch (err: any) {
     return { success: false, error: err.message };

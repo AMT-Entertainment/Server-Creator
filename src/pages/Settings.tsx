@@ -5,11 +5,31 @@ export default function Settings() {
   const { t, i18n } = useTranslation();
   const [updateState, setUpdateState] = useState<{ status: string; version?: string; progress?: number; error?: string }>({ status: 'idle' });
   const [checking, setChecking] = useState(false);
+  const [autoStart, setAutoStart] = useState(false);
+  const [servers, setServers] = useState<any[]>([]);
+  const [autoStartServers, setAutoStartServers] = useState<string[]>([]);
+  const [playitClaimUrl, setPlayitClaimUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!window.electronAPI) return;
     window.electronAPI.getUpdateState().then(setUpdateState);
     const unsub = window.electronAPI.onUpdateState(setUpdateState);
+    return unsub;
+  }, []);
+
+  useEffect(() => {
+    if (!window.electronAPI) return;
+    window.electronAPI.getAutoStart().then(result => {
+      setAutoStart(result.autoStart);
+      setAutoStartServers(result.autoStartServers);
+    });
+    window.electronAPI.getServers().then(setServers);
+    window.electronAPI.getPlayitClaimUrl().then(r => {
+      if (r.url) setPlayitClaimUrl(r.url);
+    });
+    const unsub = window.electronAPI.onPlayitClaim((data) => {
+      setPlayitClaimUrl(data.url);
+    });
     return unsub;
   }, []);
 
@@ -23,6 +43,24 @@ export default function Settings() {
 
   const handleDownload = () => window.electronAPI?.downloadUpdate();
   const handleInstall = () => window.electronAPI?.installUpdate();
+
+  const toggleAutoStart = async () => {
+    const newVal = !autoStart;
+    setAutoStart(newVal);
+    if (window.electronAPI) {
+      await window.electronAPI.setAutoStart({ autoStart: newVal, autoStartServers });
+    }
+  };
+
+  const toggleAutoStartServer = async (serverId: string) => {
+    const newList = autoStartServers.includes(serverId)
+      ? autoStartServers.filter(id => id !== serverId)
+      : [...autoStartServers, serverId];
+    setAutoStartServers(newList);
+    if (window.electronAPI) {
+      await window.electronAPI.setAutoStart({ autoStart, autoStartServers: newList });
+    }
+  };
 
   const changeLanguage = (lang: string) => {
     i18n.changeLanguage(lang);
@@ -53,12 +91,73 @@ export default function Settings() {
 
       <div className="card mt-16" style={{ maxWidth: 500 }}>
         <div className="card-header">
+          <span className="card-title">Auto-Start</span>
+        </div>
+        <div className="flex items-center gap-12 mb-16">
+          <label className="switch">
+            <input type="checkbox" checked={autoStart} onChange={toggleAutoStart} />
+            <span className="switch-slider"></span>
+          </label>
+          <div>
+            <div style={{ fontWeight: 500 }}>Launch on machine startup</div>
+            <div className="text-sm text-muted">Server Creator automatically starts when you log in</div>
+          </div>
+        </div>
+        {autoStart && servers.length > 0 && (
+          <div>
+            <div className="text-sm text-muted mb-8" style={{ fontWeight: 500 }}>Auto-start servers:</div>
+            {servers.map(s => (
+              <div key={s.id} className="flex items-center gap-12 mb-8">
+                <label className="switch">
+                  <input
+                    type="checkbox"
+                    checked={autoStartServers.includes(s.id)}
+                    onChange={() => toggleAutoStartServer(s.id)}
+                  />
+                  <span className="switch-slider"></span>
+                </label>
+                <span>{s.name}</span>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+
+      {playitClaimUrl && (
+        <div className="card mt-16" style={{ maxWidth: 500, borderColor: 'rgba(79, 195, 247, 0.3)' }}>
+          <div className="card-header">
+            <span className="card-title" style={{ color: 'var(--accent-info)' }}>Playit.gg Setup Required</span>
+          </div>
+          <p className="text-sm mb-8">
+            To use the free persistent tunnel, visit the link below to claim your tunnel:
+          </p>
+          <a
+            href={playitClaimUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            style={{
+              color: 'var(--accent-primary)',
+              fontFamily: 'var(--font-mono)',
+              fontSize: 12,
+              wordBreak: 'break-all',
+            }}
+          >
+            {playitClaimUrl}
+          </a>
+          <p className="text-sm text-muted mt-8">
+            After claiming, restart the tunnel for it to work. The tunnel address will be persistent.
+          </p>
+        </div>
+      )}
+
+      <div className="card mt-16" style={{ maxWidth: 500 }}>
+        <div className="card-header">
           <span className="card-title">Server Creator</span>
         </div>
         <div className="flex flex-col gap-8">
           <div className="flex justify-between">
             <span className="text-muted">Version</span>
-            <span>1.1.1</span>
+            <span>1.2.0</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted">Developer</span>
