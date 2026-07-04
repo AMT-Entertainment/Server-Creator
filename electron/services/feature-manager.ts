@@ -25,6 +25,13 @@ const STATE_PATH = path.join(DATA_DIR, 'features.json');
 
 const FEATURES: FeatureDef[] = [
   {
+    id: 'v140-improvements',
+    version: '1.4.0',
+    title: 'Type Safety & Quality Improvements',
+    description: 'v1.4.0 removes 90+ unsafe `any` types, adds ESLint + Prettier code formatting, and includes automated testing with Jest. The app is now more stable and easier to develop.',
+    type: 'info',
+  },
+  {
     id: 'tunnel-ssh',
     version: '1.3.0',
     title: 'SSH Tunnel (Pinggy / Serveo)',
