@@ -1,20 +1,10 @@
 import React, { useEffect, useState } from 'react';
-
-interface FeatureDef {
-  id: string;
-  version: string;
-  title: string;
-  description: string;
-  type: 'info' | 'config';
-  configKey?: string;
-  defaultValue?: any;
-  options?: { label: string; value: any }[];
-}
+import type { FeatureDef, ConfigValue } from '../types/electron';
 
 export default function FeaturePromo() {
   const [features, setFeatures] = useState<FeatureDef[]>([]);
   const [currentIdx, setCurrentIdx] = useState(0);
-  const [configValues, setConfigValues] = useState<Record<string, any>>({});
+  const [configValues, setConfigValues] = useState<Record<string, ConfigValue>>({});
   const [done, setDone] = useState(false);
   const [loading, setLoading] = useState(true);
 
@@ -22,9 +12,9 @@ export default function FeaturePromo() {
     if (!window.electronAPI) { setLoading(false); return; }
     window.electronAPI.getNewFeatures().then(r => {
       if (r.features && r.features.length > 0) {
-        const config: Record<string, any> = {};
+        const config: Record<string, ConfigValue> = {};
         for (const f of r.features) {
-          if (f.configKey) config[f.configKey] = f.defaultValue;
+          if (f.configKey && f.defaultValue !== undefined) config[f.configKey] = f.defaultValue;
         }
         setConfigValues(config);
         setFeatures(r.features);
@@ -79,21 +69,21 @@ export default function FeaturePromo() {
                   backgroundColor: '#0f0f0f', color: '#fff', border: '1px solid rgba(255,255,255,0.12)',
                   fontSize: 14,
                 }}
-                value={configValues[current.configKey]}
+                value={String(configValues[current.configKey])}
                 onChange={e => {
                   const ck = current.configKey!;
                   setConfigValues(v => ({ ...v, [ck]: e.target.value }));
                 }}
               >
-                {current.options.map(opt => (
-                  <option key={opt.value} value={opt.value}>{opt.label}</option>
+                {current.options.map((opt, i) => (
+                  <option key={i} value={String(opt.value)}>{opt.label}</option>
                 ))}
               </select>
             ) : (
               <label style={{ display: 'flex', alignItems: 'center', gap: 10, cursor: 'pointer', fontSize: 14 }}>
                 <input
                   type="checkbox"
-                  checked={configValues[current.configKey]}
+                  checked={Boolean(configValues[current.configKey])}
                   onChange={e => {
                     const ck = current.configKey!;
                     setConfigValues(v => ({ ...v, [ck]: e.target.checked }));

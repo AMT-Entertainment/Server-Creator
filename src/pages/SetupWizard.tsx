@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { ServerConfig } from '../types/electron';
 import ServerCreationProgress, { ProgressStep } from '../components/ServerCreationProgress';
 
 interface SetupWizardProps {
@@ -25,7 +26,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
   const [creating, setCreating] = useState(false);
   const [error, setError] = useState('');
 
-  const [loader, setLoader] = useState('');
+  const [loader, setLoader] = useState<ServerConfig['loader'] | ''>('');
   const [versions, setVersions] = useState<Array<{ version: string; stable: boolean }>>([]);
   const [versionsLoading, setVersionsLoading] = useState(false);
   const [version, setVersion] = useState('');
@@ -34,8 +35,8 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
   const [portAvailable, setPortAvailable] = useState<boolean | null>(null);
   const [maxPlayers, setMaxPlayers] = useState('20');
   const [motd, setMotd] = useState('');
-  const [gamemode, setGamemode] = useState('survival');
-  const [difficulty, setDifficulty] = useState('easy');
+  const [gamemode, setGamemode] = useState<ServerConfig['gamemode']>('survival');
+  const [difficulty, setDifficulty] = useState<ServerConfig['difficulty']>('easy');
   const [icon, setIcon] = useState('');
   const [iconPreview, setIconPreview] = useState('');
   const [ram, setRam] = useState(2);
@@ -170,13 +171,13 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
     try {
       const result = await window.electronAPI.createServer({
         name,
-        loader,
+        loader: loader as ServerConfig['loader'],
         version,
         port: parseInt(port, 10),
         maxPlayers: parseInt(maxPlayers, 10),
         motd: motd || 'Welcome to my server!',
-        gamemode,
-        difficulty,
+        gamemode: gamemode as ServerConfig['gamemode'],
+        difficulty: difficulty as ServerConfig['difficulty'],
         ram,
         icon: icon || undefined,
         tunnelEnabled,
@@ -200,10 +201,11 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
         setError(result.error || t('wizard.error'));
         setCreating(false);
       }
-    } catch (e: any) {
+    } catch (e: unknown) {
+      const msg = e instanceof Error ? e.message : String(e);
       const activeStep = progressSteps.find(p => p.status === 'active');
-      if (activeStep) updateStep(activeStep.id, 'error', e.message);
-      setError(e.message || t('wizard.error'));
+      if (activeStep) updateStep(activeStep.id, 'error', msg);
+      setError(msg || t('wizard.error'));
       setCreating(false);
     }
   };
@@ -249,7 +251,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                 <div
                   key={id}
                   className={`loader-card ${loader === id ? 'selected' : ''}`}
-                  onClick={() => setLoader(id)}
+                  onClick={() => setLoader(id as ServerConfig['loader'])}
                 >
                   <span className="material-symbols-outlined icon">{info.icon}</span>
                   <h4>{t(info.label)}</h4>
@@ -391,7 +393,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
               <div className="flex gap-16">
                 <div style={{ flex: 1 }}>
                   <label className="label">{t('wizard.gamemode')}</label>
-                  <select className="select" value={gamemode} onChange={e => setGamemode(e.target.value)}>
+                  <select className="select" value={gamemode} onChange={e => setGamemode(e.target.value as ServerConfig['gamemode'])}>
                     {GAMEMODES.map(gm => (
                       <option key={gm} value={gm}>{t(`wizard.${gm}`)}</option>
                     ))}
@@ -399,7 +401,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                 </div>
                 <div style={{ flex: 1 }}>
                   <label className="label">{t('wizard.difficulty')}</label>
-                  <select className="select" value={difficulty} onChange={e => setDifficulty(e.target.value)}>
+                  <select className="select" value={difficulty} onChange={e => setDifficulty(e.target.value as ServerConfig['difficulty'])}>
                     {DIFFICULTIES.map(d => (
                       <option key={d} value={d}>{t(`wizard.${d}`)}</option>
                     ))}

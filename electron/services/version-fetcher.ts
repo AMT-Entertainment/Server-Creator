@@ -25,15 +25,18 @@ export class VersionFetcher {
     }
   }
 
-  getVanillaManifest(): Promise<any> {
-    return this.fetchJSON('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json');
+  getVanillaManifest() {
+    return this.fetchJSON<{
+      versions: Array<{ id: string; type: string; url: string }>;
+      latest: { release: string; snapshot: string };
+    }>('https://piston-meta.mojang.com/mc/game/version_manifest_v2.json');
   }
 
   async resolveVanillaUrl(version: string): Promise<string | null> {
     const manifest = await this.getVanillaManifest();
-    const entry = manifest.versions.find((v: any) => v.id === version);
+    const entry = manifest.versions.find(v => v.id === version);
     if (!entry) return null;
-    const versionData = await this.fetchJSON(entry.url);
+    const versionData = await this.fetchJSON<{ downloads?: { server?: { url: string } } }>(entry.url);
     return versionData.downloads?.server?.url || null;
   }
 
@@ -52,16 +55,16 @@ export class VersionFetcher {
   private async getVanillaVersions(): Promise<VersionEntry[]> {
     const manifest = await this.getVanillaManifest();
     return (manifest.versions || [])
-      .filter((v: any) => v.type === 'release')
-      .map((v: any) => ({ version: v.id, stable: true }))
-      .sort((a: VersionEntry, b: VersionEntry) => this.compareVersions(b.version, a.version));
+      .filter(v => v.type === 'release')
+      .map(v => ({ version: v.id, stable: true }))
+      .sort((a, b) => this.compareVersions(b.version, a.version));
   }
 
   private async getPaperVersions(): Promise<VersionEntry[]> {
-    const data = await this.fetchJSON('https://fill.papermc.io/v3/projects/paper');
+    const data = await this.fetchJSON<{ versions: Record<string, string[]> }>('https://fill.papermc.io/v3/projects/paper');
     if (!data || !data.versions) return [];
     const versions: string[] = [];
-    for (const group of Object.values(data.versions) as any) {
+    for (const group of Object.values(data.versions)) {
       if (Array.isArray(group)) {
         for (const v of group) {
           if (!v.includes('-')) versions.push(v);
@@ -69,20 +72,20 @@ export class VersionFetcher {
       }
     }
     return [...new Set(versions)]
-      .map((v: string) => ({ version: v, stable: true }))
-      .sort((a: VersionEntry, b: VersionEntry) => this.compareVersions(b.version, a.version));
+      .map(v => ({ version: v, stable: true }))
+      .sort((a, b) => this.compareVersions(b.version, a.version));
   }
 
   private async getFabricVersions(): Promise<VersionEntry[]> {
-    const gameData = await this.fetchJSON('https://meta.fabricmc.net/v2/versions/game');
+    const gameData = await this.fetchJSON<Array<{ version: string; stable: boolean }>>('https://meta.fabricmc.net/v2/versions/game');
     return (gameData || [])
-      .filter((v: any) => v.stable)
-      .map((v: any) => ({ version: v.version, stable: true }))
-      .sort((a: VersionEntry, b: VersionEntry) => this.compareVersions(b.version, a.version));
+      .filter(v => v.stable)
+      .map(v => ({ version: v.version, stable: true }))
+      .sort((a, b) => this.compareVersions(b.version, a.version));
   }
 
   private async getForgeVersions(): Promise<VersionEntry[]> {
-    const data = await this.fetchJSON('https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json');
+    const data = await this.fetchJSON<{ promos: Record<string, string> }>('https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json');
     const versions = new Set<string>();
     for (const key of Object.keys(data.promos || {})) {
       const mcVersion = key.split('-')[0];
@@ -96,10 +99,10 @@ export class VersionFetcher {
   }
 
   private async getPurpurVersions(): Promise<VersionEntry[]> {
-    const data = await this.fetchJSON('https://api.purpurmc.org/v2/purpur');
+    const data = await this.fetchJSON<{ versions: string[] }>('https://api.purpurmc.org/v2/purpur');
     return (data.versions || [])
-      .map((v: string) => ({ version: v, stable: true }))
-      .sort((a: VersionEntry, b: VersionEntry) => this.compareVersions(b.version, a.version));
+      .map(v => ({ version: v, stable: true }))
+      .sort((a, b) => this.compareVersions(b.version, a.version));
   }
 
   private async getSpigotVersions(): Promise<VersionEntry[]> {
@@ -119,7 +122,7 @@ export class VersionFetcher {
 
   private async getNeoForgeVersions(): Promise<VersionEntry[]> {
     try {
-      const data = await this.fetchJSON('https://maven.neoforged.net/api/maven/versions/releases/net/neoforged/neoforge');
+      const data = await this.fetchJSON<{ versions: string[] }>('https://maven.neoforged.net/api/maven/versions/releases/net/neoforged/neoforge');
       const seen = new Set<string>();
       const versions: VersionEntry[] = [];
       (data.versions || []).forEach((v: string) => {
@@ -128,7 +131,6 @@ export class VersionFetcher {
           const key = `${parts[0]}.${parts[1]}`;
           if (!seen.has(key)) {
             seen.add(key);
-            const mcVersion = this.neoToMc(key);
             versions.push({ version: key, stable: true });
           }
         }
@@ -155,7 +157,7 @@ export class VersionFetcher {
     return 0;
   }
 
-  private fetchJSON(url: string): Promise<any> {
+  private fetchJSON<T>(url: string): Promise<T> {
     return new Promise((resolve, reject) => {
       const parsedUrl = new URL(url);
       const protocol = parsedUrl.protocol === 'https:' ? https : http;
@@ -164,7 +166,7 @@ export class VersionFetcher {
         path: parsedUrl.pathname + parsedUrl.search,
         headers: { 'User-Agent': 'Server-Creator/1.0 (AMT Entertainment)' },
         timeout: 10000,
-      }, (response: any) => {
+      }, (response: http.IncomingMessage) => {
         let data = '';
         response.on('data', (chunk: string) => data += chunk);
         response.on('end', () => {

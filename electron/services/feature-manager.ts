@@ -2,6 +2,8 @@ import * as fs from 'fs';
 import * as path from 'path';
 import * as os from 'os';
 
+type ConfigValue = string | number | boolean;
+
 interface FeatureDef {
   id: string;
   version: string;
@@ -9,13 +11,13 @@ interface FeatureDef {
   description: string;
   type: 'info' | 'config';
   configKey?: string;
-  defaultValue?: any;
-  options?: { label: string; value: any }[];
+  defaultValue?: ConfigValue;
+  options?: { label: string; value: ConfigValue }[];
 }
 
 interface FeatureState {
   acknowledgedFeatures: string[];
-  config: Record<string, any>;
+  config: Record<string, ConfigValue>;
 }
 
 const DATA_DIR = path.join(os.homedir(), '.server-creator');
@@ -102,16 +104,16 @@ export class FeatureManager {
     this.saveState();
   }
 
-  getConfig(key: string, defaultValue?: any): any {
+  getConfig(key: string, defaultValue?: ConfigValue): ConfigValue | undefined {
     return this.state.config[key] !== undefined ? this.state.config[key] : defaultValue;
   }
 
-  setConfig(key: string, value: any) {
+  setConfig(key: string, value: ConfigValue) {
     this.state.config[key] = value;
     this.saveState();
   }
 
-  getAllConfig(): Record<string, any> {
+  getAllConfig(): Record<string, ConfigValue> {
     return { ...this.state.config };
   }
 

@@ -1,12 +1,13 @@
 import React, { useEffect, useState } from 'react';
 import { useTranslation } from 'react-i18next';
+import type { ServerConfig, UpdateState } from '../types/electron';
 
 export default function Settings() {
   const { t, i18n } = useTranslation();
-  const [updateState, setUpdateState] = useState<{ status: string; version?: string; progress?: number; error?: string }>({ status: 'idle' });
+  const [updateState, setUpdateState] = useState<UpdateState>({ status: 'idle' });
   const [checking, setChecking] = useState(false);
   const [autoStart, setAutoStart] = useState(false);
-  const [servers, setServers] = useState<any[]>([]);
+  const [servers, setServers] = useState<ServerConfig[]>([]);
   const [autoStartServers, setAutoStartServers] = useState<string[]>([]);
 
   useEffect(() => {
@@ -122,7 +123,7 @@ export default function Settings() {
         <div className="flex flex-col gap-8">
           <div className="flex justify-between">
             <span className="text-muted">Version</span>
-            <span>1.3.2</span>
+            <span>1.4.0</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted">Developer</span>

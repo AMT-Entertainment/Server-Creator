@@ -79,6 +79,8 @@ export interface FileEntry {
   modified: Date;
 }
 
+export type ConfigValue = string | number | boolean;
+
 export interface FeatureDef {
   id: string;
   version: string;
@@ -86,14 +88,52 @@ export interface FeatureDef {
   description: string;
   type: 'info' | 'config';
   configKey?: string;
-  defaultValue?: any;
-  options?: { label: string; value: any }[];
+  defaultValue?: ConfigValue;
+  options?: { label: string; value: ConfigValue }[];
+}
+
+export interface AutoStartSettings {
+  autoStart: boolean;
+  autoStartServers: string[];
+  loginItemEnabled: boolean;
+}
+
+export interface UpdateState {
+  status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error';
+  version?: string;
+  progress?: number;
+  error?: string;
+}
+
+export interface CreateServerResult {
+  success: boolean;
+  server?: ServerConfig;
+  error?: string;
+}
+
+export interface VersionResult {
+  success: boolean;
+  versions?: Array<{ version: string; stable: boolean }>;
+  error?: string;
+}
+
+export interface TunnelResult {
+  success: boolean;
+  url?: string;
+  error?: string;
+}
+
+export interface DialogOptions {
+  title?: string;
+  defaultPath?: string;
+  filters?: Array<{ name: string; extensions: string[] }>;
+  properties?: Array<'openFile' | 'openDirectory' | 'multiSelections' | 'showHiddenFiles'>;
 }
 
 export interface ElectronAPI {
   getServers: () => Promise<ServerConfig[]>;
   getServer: (id: string) => Promise<ServerConfig | null>;
-  createServer: (config: any) => Promise<{ success: boolean; server?: ServerConfig; error?: string }>;
+  createServer: (config: Omit<ServerConfig, 'id'>) => Promise<CreateServerResult>;
   deleteServer: (id: string) => Promise<{ success: boolean }>;
   startServer: (id: string) => Promise<{ success: boolean; error?: string }>;
   stopServer: (id: string) => Promise<{ success: boolean }>;
@@ -107,24 +147,22 @@ export interface ElectronAPI {
   clearLogs: (id: string) => Promise<{ success: boolean }>;
   onCreationProgress: (callback: (data: { step: string; progress: number; message: string }) => void) => () => void;
   onTerminalOutput: (callback: (id: string, output: string) => void) => () => void;
-  onServerStatusChanged: (callback: (id: string, status: string, data?: any) => void) => () => void;
-  checkPort: (port: number, excludeServerId?: string) => Promise<{ inUse: boolean; reason?: string }>;
-  getVersions: (loader: string) => Promise<{ success: boolean; versions?: Array<{ version: string; stable: boolean }>; error?: string }>;
+  onServerStatusChanged: (callback: (id: string, status: string, data?: Record<string, unknown>) => void) => () => void;
+  checkPort: (port: number, excludeServerId?: string) => Promise<PortCheck>;
+  getVersions: (loader: string) => Promise<VersionResult>;
   neoToMc: (neoVersion: string) => Promise<{ mcVersion: string }>;
   getSystemRam: () => Promise<SystemRam>;
   modrinthSearch: (query: string, loaders: string[], versions: string[], limit?: number) => Promise<{ success: boolean; results?: ModrinthProject[]; error?: string }>;
   modrinthGetVersions: (projectId: string) => Promise<{ success: boolean; versions?: ModrinthVersion[]; error?: string }>;
   modrinthDownload: (projectId: string, versionId: string, serverPath: string) => Promise<{ success: boolean; error?: string }>;
-  startTunnel: (serverId: string, port: number) => Promise<{ success: boolean; url?: string; error?: string }>;
+  startTunnel: (serverId: string, port: number) => Promise<TunnelResult>;
   stopTunnel: (serverId: string) => Promise<void>;
   getTunnelStatus: (serverId: string) => Promise<TunnelStatus>;
   getPublicIp: () => Promise<string | null>;
   getLocalIp: () => Promise<string | null>;
   onTunnelReady: (callback: (data: { serverId: string; url: string }) => void) => () => void;
   onTunnelStarting: (callback: (data: { serverId: string; port: number }) => void) => () => void;
-
-  // Auto-start
-  getAutoStart: () => Promise<{ autoStart: boolean; autoStartServers: string[]; loginItemEnabled: boolean }>;
+  getAutoStart: () => Promise<AutoStartSettings>;
   setAutoStart: (settings: { autoStart: boolean; autoStartServers: string[] }) => Promise<{ success: boolean }>;
   listFiles: (serverId: string, dirPath?: string) => Promise<FileEntry[]>;
   readFile: (serverId: string, filePath: string) => Promise<{ content: string; isBinary: boolean }>;
@@ -132,22 +170,20 @@ export interface ElectronAPI {
   deleteFile: (serverId: string, filePath: string) => Promise<{ success: boolean }>;
   getJVMArgs: (serverId: string) => Promise<string>;
   setJVMArgs: (serverId: string, args: string) => Promise<{ success: boolean }>;
-  getServerConfig: (serverId: string) => Promise<any>;
-  setServerConfig: (serverId: string, config: any) => Promise<{ success: boolean }>;
+  getServerConfig: (serverId: string) => Promise<Record<string, string> | null>;
+  setServerConfig: (serverId: string, config: Record<string, string>) => Promise<{ success: boolean }>;
   checkForUpdates: () => Promise<{ success: boolean }>;
   downloadUpdate: () => Promise<{ success: boolean }>;
   installUpdate: () => Promise<{ success: boolean }>;
-  getUpdateState: () => Promise<{ status: string; version?: string; progress?: number; error?: string }>;
-  onUpdateState: (callback: (state: { status: string; version?: string; progress?: number; error?: string }) => void) => () => void;
-  openFileDialog: (options: any) => Promise<any>;
-  saveFileDialog: (options: any) => Promise<any>;
-
-  // Feature manager
+  getUpdateState: () => Promise<UpdateState>;
+  onUpdateState: (callback: (state: UpdateState) => void) => () => void;
+  openFileDialog: (options: DialogOptions) => Promise<{ canceled: boolean; filePaths: string[] }>;
+  saveFileDialog: (options: DialogOptions) => Promise<{ canceled: boolean; filePath?: string }>;
   getNewFeatures: () => Promise<{ features: FeatureDef[] }>;
   acknowledgeFeature: (featureId: string) => Promise<{ success: boolean }>;
-  getFeatureConfig: (key: string, defaultValue?: any) => Promise<{ value: any }>;
-  setFeatureConfig: (key: string, value: any) => Promise<{ success: boolean }>;
-  getAllFeatureConfig: () => Promise<{ config: Record<string, any> }>;
+  getFeatureConfig: <T = ConfigValue>(key: string, defaultValue?: T) => Promise<{ value: T }>;
+  setFeatureConfig: (key: string, value: ConfigValue) => Promise<{ success: boolean }>;
+  getAllFeatureConfig: () => Promise<{ config: Record<string, ConfigValue> }>;
   getNextFeature: () => Promise<{ feature: FeatureDef | null }>;
 }
 

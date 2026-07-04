@@ -3,7 +3,9 @@ import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
+import type { ServerConfig } from '../src/types/electron';
 import { FeatureManager } from './services/feature-manager';
+import { getErrorMessage } from './utils/error';
 import { FileManager } from './services/file-manager';
 import { ModrinthAPI } from './services/modrinth-api';
 import { PortChecker } from './services/port-checker';
@@ -125,11 +127,11 @@ function setupAutoUpdater() {
   });
 
   autoUpdater.on('error', (err) => {
-    const msg = (err.message || '').toLowerCase();
+    const msg = (getErrorMessage(err) || '').toLowerCase();
     if (msg.includes('404') || msg.includes('not found') || msg.includes('could not find') || msg.includes('network') || msg.includes('econnrefused')) {
       updateState = { status: 'idle' };
     } else {
-      updateState = { status: 'error', error: err.message };
+      updateState = { status: 'error', error: getErrorMessage(err) };
     }
     sendUpdateState();
   });
@@ -140,11 +142,11 @@ function checkForUpdates() {
   updateState = { status: 'checking' };
   sendUpdateState();
   autoUpdater.checkForUpdates().catch((err) => {
-    const msg = (err.message || '').toLowerCase();
+    const msg = (getErrorMessage(err) || '').toLowerCase();
     if (msg.includes('404') || msg.includes('not found') || msg.includes('could not find') || msg.includes('network') || msg.includes('econnrefused')) {
       updateState = { status: 'idle' };
     } else {
-      updateState = { status: 'error', error: err.message };
+      updateState = { status: 'error', error: getErrorMessage(err) };
     }
     sendUpdateState();
   });
@@ -173,8 +175,8 @@ function autoStartServers() {
               }
             }).catch(() => {});
           }
-        } catch (err: any) {
-          showNotification('Server Failed', `${server.name} failed to auto-start: ${err.message}`);
+        } catch (err: unknown) {
+          showNotification('Server Failed', `${server.name} failed to auto-start: ${getErrorMessage(err)}`);
         }
       }, 3000);
     }
@@ -242,11 +244,11 @@ ipcMain.handle('features:acknowledge', (_event, featureId: string) => {
   return { success: true };
 });
 
-ipcMain.handle('features:get-config', (_event, key: string, defaultValue?: any) => {
+ipcMain.handle('features:get-config', (_event, key: string, defaultValue?: string | number | boolean) => {
   return { value: featureManager.getConfig(key, defaultValue) };
 });
 
-ipcMain.handle('features:set-config', (_event, key: string, value: any) => {
+ipcMain.handle('features:set-config', (_event, key: string, value: string | number | boolean) => {
   featureManager.setConfig(key, value);
   return { success: true };
 });
@@ -269,7 +271,7 @@ ipcMain.handle('servers:get', (_event, id: string) => {
   return serverManager.getServer(id);
 });
 
-ipcMain.handle('servers:create', async (event, config: any) => {
+ipcMain.handle('servers:create', async (event, config: Omit<ServerConfig, 'id'>) => {
   try {
     serverManager.onCreationProgress = (step, progress, message) => {
       if (mainWindow && !mainWindow.isDestroyed()) {
@@ -279,12 +281,12 @@ ipcMain.handle('servers:create', async (event, config: any) => {
     const server = await serverManager.createServer(config);
     serverManager.onCreationProgress = null;
     return { success: true, server };
-  } catch (err: any) {
+  } catch (err: unknown) {
     serverManager.onCreationProgress = null;
     if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send('server:creation:progress', { step: 'error', progress: 0, message: err.message });
+      mainWindow.webContents.send('server:creation:progress', { step: 'error', progress: 0, message: getErrorMessage(err) });
     }
-    return { success: false, error: err.message };
+    return { success: false, error: getErrorMessage(err) };
   }
 });
 
@@ -317,8 +319,8 @@ ipcMain.handle('server:start', async (_event, id: string) => {
     }
     showNotification(`Server Started`, `${server?.name || id} is now running on port ${port}`);
     return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message };
+  } catch (err: unknown) {
+    return { success: false, error: getErrorMessage(err) };
   }
 });
 
@@ -334,8 +336,8 @@ ipcMain.handle('server:stop', async (_event, id: string) => {
   try {
     await serverManager.stopServer(id);
     return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message };
+  } catch (err: unknown) {
+    return { success: false, error: getErrorMessage(err) };
   }
 });
 
@@ -343,8 +345,8 @@ ipcMain.handle('server:restart', async (_event, id: string) => {
   try {
     await serverManager.restartServer(id);
     return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message };
+  } catch (err: unknown) {
+    return { success: false, error: getErrorMessage(err) };
   }
 });
 
@@ -398,7 +400,7 @@ ipcMain.handle('server:terminal:unlisten', (event, id: string) => {
 ipcMain.handle('server:status:listen', (event, id: string) => {
   const existing = statusUnlisteners.get(id);
   if (existing) existing();
-  const unsub = serverManager.onStatusChange(id, (status: string, data?: any) => {
+  const unsub = serverManager.onStatusChange(id, (status: string, data?: Record<string, unknown>) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('server:status:changed', id, status, data);
     }
@@ -437,8 +439,8 @@ ipcMain.handle('versions:get', async (_event, loader: string) => {
   try {
     const versions = await versionFetcher.getVersions(loader);
     return { success: true, versions };
-  } catch (err: any) {
-    return { success: false, error: err.message, versions: [] };
+  } catch (err: unknown) {
+    return { success: false, error: getErrorMessage(err), versions: [] };
   }
 });
 
@@ -451,8 +453,8 @@ ipcMain.handle('modrinth:search', async (_event, query: string, loaders: string[
   try {
     const results = await modrinthAPI.searchProjects(query, loaders, versions, limit);
     return { success: true, results };
-  } catch (err: any) {
-    return { success: false, error: err.message };
+  } catch (err: unknown) {
+    return { success: false, error: getErrorMessage(err) };
   }
 });
 
@@ -460,8 +462,8 @@ ipcMain.handle('modrinth:get-versions', async (_event, projectId: string) => {
   try {
     const versions = await modrinthAPI.getProjectVersions(projectId);
     return { success: true, versions };
-  } catch (err: any) {
-    return { success: false, error: err.message };
+  } catch (err: unknown) {
+    return { success: false, error: getErrorMessage(err) };
   }
 });
 
@@ -469,8 +471,8 @@ ipcMain.handle('modrinth:download', async (_event, projectId: string, versionId:
   try {
     await modrinthAPI.downloadVersion(projectId, versionId, serverPath);
     return { success: true };
-  } catch (err: any) {
-    return { success: false, error: err.message };
+  } catch (err: unknown) {
+    return { success: false, error: getErrorMessage(err) };
   }
 });
 
@@ -479,8 +481,8 @@ ipcMain.handle('tunnel:start', async (_event, serverId: string, port: number) =>
   try {
     const url = await tunnelingService.startTunnel(serverId, port);
     return { success: true, url };
-  } catch (err: any) {
-    return { success: false, error: err.message };
+  } catch (err: unknown) {
+    return { success: false, error: getErrorMessage(err) };
   }
 });
 
@@ -527,7 +529,7 @@ ipcMain.handle('server:config:get', (_event, serverId: string) => {
   return serverManager.getServerConfig(serverId);
 });
 
-ipcMain.handle('server:config:set', (_event, serverId: string, config: any) => {
+ipcMain.handle('server:config:set', (_event, serverId: string, config: Record<string, string>) => {
   serverManager.setServerConfig(serverId, config);
   return { success: true };
 });
@@ -550,7 +552,7 @@ ipcMain.handle('update:download', () => {
       updateState = { status: 'downloaded', version: updateState.version };
       sendUpdateState();
     }).catch((err) => {
-      updateState = { status: 'error', error: err.message };
+      updateState = { status: 'error', error: getErrorMessage(err) };
       sendUpdateState();
     });
   }
@@ -563,13 +565,13 @@ ipcMain.handle('update:install', () => {
 });
 
 // Dialog
-ipcMain.handle('dialog:openFile', async (_event, options: any) => {
+ipcMain.handle('dialog:openFile', async (_event, options: Electron.OpenDialogOptions) => {
   if (!mainWindow) return { canceled: true };
   const result = await dialog.showOpenDialog(mainWindow, options);
   return result;
 });
 
-ipcMain.handle('dialog:saveFile', async (_event, options: any) => {
+ipcMain.handle('dialog:saveFile', async (_event, options: Electron.SaveDialogOptions) => {
   if (!mainWindow) return { canceled: true };
   const result = await dialog.showSaveDialog(mainWindow, options);
   return result;

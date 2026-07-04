@@ -29,7 +29,7 @@ interface ServerInstance {
   status: 'stopped' | 'starting' | 'running' | 'stopping' | 'crashed';
   terminalOutput: string[];
   logs: string[];
-  statusListeners: ((status: string, data?: any) => void)[];
+  statusListeners: ((status: string, data?: Record<string, unknown>) => void)[];
   terminalListeners: ((output: string) => void)[];
   safeStopRequested: boolean;
   crashCount: number;
@@ -323,13 +323,13 @@ export class ServerManager {
     }
   }
 
-  getServerConfig(id: string): any {
+  getServerConfig(id: string): Record<string, string> | null {
     const serverDir = path.join(SERVERS_DIR, id);
     const propsPath = path.join(serverDir, 'server.properties');
     if (fs.existsSync(propsPath)) {
       const content = fs.readFileSync(propsPath, 'utf-8');
       const lines = content.split('\n');
-      const config: any = {};
+      const config: Record<string, string> = {};
       for (const line of lines) {
         const [key, ...vals] = line.split('=');
         if (key && vals.length > 0) {
@@ -341,7 +341,7 @@ export class ServerManager {
     return null;
   }
 
-  setServerConfig(id: string, config: any) {
+  setServerConfig(id: string, config: Record<string, string>) {
     const serverDir = path.join(SERVERS_DIR, id);
     const propsPath = path.join(serverDir, 'server.properties');
     let content = '';
@@ -369,7 +369,7 @@ export class ServerManager {
     };
   }
 
-  onStatusChange(id: string, listener: (status: string, data?: any) => void): () => void {
+  onStatusChange(id: string, listener: (status: string, data?: Record<string, unknown>) => void): () => void {
     const instance = this.servers.get(id);
     if (!instance) return () => {};
     instance.statusListeners.push(listener);
@@ -409,7 +409,7 @@ export class ServerManager {
     fs.appendFileSync(logFile, logEntry + '\n', 'utf-8');
   }
 
-  private notifyStatus(id: string, status: string, data?: any) {
+  private notifyStatus(id: string, status: string, data?: Record<string, unknown>) {
     const instance = this.servers.get(id);
     if (!instance) return;
     for (const listener of instance.statusListeners) {
@@ -485,9 +485,9 @@ export class ServerManager {
 
   private async resolvePaperUrl(version: string): Promise<string | null> {
     try {
-      const data = await this.fetchJSON(`https://fill.papermc.io/v3/projects/paper/versions/${version}/builds`);
+      const data = await this.fetchJSON<Array<{ channel: string; downloads: Record<string, { url: string }> }>>(`https://fill.papermc.io/v3/projects/paper/versions/${version}/builds`);
       if (!Array.isArray(data)) return null;
-      const stable = data.find((b: any) => b.channel === 'STABLE' && b.downloads?.['server:default']?.url);
+      const stable = data.find(b => b.channel === 'STABLE' && b.downloads?.['server:default']?.url);
       return stable?.downloads['server:default'].url || null;
     } catch {
       return null;
@@ -501,7 +501,7 @@ export class ServerManager {
   }
 
   private async downloadForgeJar(config: ServerConfig, jarPath: string): Promise<void> {
-    const manifest = await this.fetchJSON('https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json');
+    const manifest = await this.fetchJSON<{ promos: Record<string, string> }>('https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json');
     const forgeVersion = manifest.promos?.[`${config.version}-recommended`] || manifest.promos?.[`${config.version}-latest`];
     if (!forgeVersion) throw new Error(`No Forge build found for Minecraft ${config.version}`);
 
@@ -542,7 +542,7 @@ export class ServerManager {
   }
 
   private async downloadNeoForgeJar(config: ServerConfig, jarPath: string): Promise<void> {
-    const data = await this.fetchJSON('https://maven.neoforged.net/api/maven/versions/releases/net/neoforged/neoforge');
+    const data = await this.fetchJSON<{ versions: string[] }>('https://maven.neoforged.net/api/maven/versions/releases/net/neoforged/neoforge');
     const matchingVersions = (data.versions || [])
       .filter((v: string) => v.startsWith(config.version) || v.startsWith(config.version.replace('.', '.')));
     if (matchingVersions.length === 0) throw new Error(`No NeoForge build found for Minecraft ${config.version}`);
@@ -609,7 +609,7 @@ export class ServerManager {
           timeout: 30000,
         };
 
-        const req = protocol.get(options, (response: any) => {
+        const req = protocol.get(options, (response: http.IncomingMessage) => {
           if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
             file.close();
             if (fs.existsSync(dest)) fs.unlinkSync(dest);
@@ -631,7 +631,7 @@ export class ServerManager {
             resolve();
           });
         });
-        req.on('error', (err: any) => {
+        req.on('error', (err: Error) => {
           file.close();
           if (fs.existsSync(dest)) fs.unlinkSync(dest);
           reject(new Error(`Download failed: ${err.message} for ${url}`));
@@ -647,7 +647,7 @@ export class ServerManager {
     });
   }
 
-  private fetchJSON(url: string): Promise<any> {
+  private fetchJSON<T>(url: string): Promise<T> {
     return new Promise((resolve, reject) => {
       const protocol = url.startsWith('https') ? https : http;
       const parsedUrl = new URL(url);

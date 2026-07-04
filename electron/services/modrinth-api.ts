@@ -66,7 +66,7 @@ export class ModrinthAPI {
 
       const url = `${MODRINTH_API}/search?${params.toString()}`;
 
-      this.fetchJSON(url).then((data: any) => {
+      this.fetchJSON<{ hits: ProjectResult[] }>(url).then(data => {
         resolve(data.hits || []);
       }).catch(reject);
     });
@@ -76,7 +76,7 @@ export class ModrinthAPI {
     return new Promise((resolve, reject) => {
       const url = `${MODRINTH_API}/project/${projectId}/version`;
 
-      this.fetchJSON(url).then((data: any) => {
+      this.fetchJSON<VersionResult[]>(url).then(data => {
         resolve(data || []);
       }).catch(reject);
     });
@@ -100,26 +100,30 @@ export class ModrinthAPI {
     await this.downloadFile(primaryFile.url, dest);
   }
 
-  private fetchJSON(url: string): Promise<any> {
+  private fetchJSON<T>(url: string): Promise<T> {
     return new Promise((resolve, reject) => {
       const protocol = url.startsWith('https') ? https : http;
 
-      protocol.get(url, {
+      const req = protocol.get(url, {
         headers: {
           'User-Agent': 'Server-Creator/1.0 (AMT Entertainment)',
           'Accept': 'application/json',
         },
-      }, (response) => {
+        timeout: 15000,
+      }, (response: http.IncomingMessage) => {
         let data = '';
-        response.on('data', (chunk) => data += chunk);
+        response.on('data', (chunk: string) => data += chunk);
         response.on('end', () => {
-          try {
-            resolve(JSON.parse(data));
-          } catch (e) {
-            reject(new Error('Failed to parse response'));
+          if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
+            try { resolve(JSON.parse(data)); }
+            catch { reject(new Error('Failed to parse response')); }
+          } else {
+            reject(new Error(`HTTP ${response.statusCode}`));
           }
         });
-      }).on('error', reject);
+      });
+      req.on('error', reject);
+      req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
     });
   }
 
@@ -132,11 +136,11 @@ export class ModrinthAPI {
         headers: {
           'User-Agent': 'Server-Creator/1.0 (AMT Entertainment)',
         },
-      }, (response) => {
-        if (response.statusCode === 301 || response.statusCode === 302) {
+      }, (response: http.IncomingMessage) => {
+        if ((response.statusCode === 301 || response.statusCode === 302) && response.headers.location) {
           file.close();
           fs.unlinkSync(dest);
-          return this.downloadFile(response.headers.location!, dest).then(resolve).catch(reject);
+          return this.downloadFile(response.headers.location, dest).then(resolve).catch(reject);
         }
         if (response.statusCode !== 200) {
           reject(new Error(`Download failed with status ${response.statusCode}`));
@@ -154,7 +158,7 @@ export class ModrinthAPI {
           file.close();
           resolve();
         });
-      }).on('error', (err) => {
+      }).on('error', (err: Error) => {
         file.close();
         if (fs.existsSync(dest)) fs.unlinkSync(dest);
         reject(err);

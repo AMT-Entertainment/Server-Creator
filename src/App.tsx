@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Routes, Route, useNavigate, useLocation } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
+import type { ServerConfig } from './types/electron';
 import Home from './pages/Home';
 import ServerDetail from './pages/ServerDetail';
 import SetupWizard from './pages/SetupWizard';
@@ -13,7 +14,7 @@ function App() {
   const { t } = useTranslation();
   const navigate = useNavigate();
   const location = useLocation();
-  const [servers, setServers] = useState<any[]>([]);
+  const [servers, setServers] = useState<ServerConfig[]>([]);
   const [ready, setReady] = useState(false);
   const [sidebarUpdate, setSidebarUpdate] = useState<{ type: 'downloading' | 'downloaded'; progress?: number } | null>(null);
 
