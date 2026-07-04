@@ -35,7 +35,12 @@ export default function UpdateScreen({ onComplete }: UpdateScreenProps) {
         setPhase('downloaded');
       } else if (state.status === 'error') {
         setErrorMsg(state.error || 'Update check failed');
-        setPhase('error');
+        if (state.version) {
+          setVersion(state.version);
+          setPhase('downloaded');
+        } else {
+          setPhase('done');
+        }
       }
     });
 
@@ -55,7 +60,7 @@ export default function UpdateScreen({ onComplete }: UpdateScreenProps) {
     if (phase === 'done' && !doneRef.current) {
       doneRef.current = true;
       setFadeOut(true);
-      const t = setTimeout(onComplete, 400);
+      const t = setTimeout(onComplete, 300);
       return () => clearTimeout(t);
     }
   }, [phase, onComplete]);
@@ -67,40 +72,39 @@ export default function UpdateScreen({ onComplete }: UpdateScreenProps) {
     <div style={{
       position: 'fixed', inset: 0, zIndex: 10000,
       display: 'flex', alignItems: 'center', justifyContent: 'center',
-      background: fadeOut ? 'transparent' : 'rgba(0,0,0,0.6)',
-      backdropFilter: 'blur(4px)',
-      transition: 'background 0.4s ease',
+      background: fadeOut ? 'transparent' : '#0f0f0f',
+      transition: 'background 0.3s ease',
     }}>
       <div style={{
-        background: 'var(--bg-card)',
-        border: '1px solid var(--border-color)',
+        background: '#1a1a2e',
+        border: '1px solid #2a2a4a',
         borderRadius: 16,
-        boxShadow: 'var(--shadow-lg)',
+        boxShadow: '0 8px 32px rgba(0,0,0,0.5)',
         padding: 36,
         width: 380,
         textAlign: 'center',
         opacity: fadeOut ? 0 : 1,
         transform: fadeOut ? 'scale(0.9)' : 'scale(1)',
-        transition: 'opacity 0.4s ease, transform 0.4s ease',
+        transition: 'opacity 0.3s ease, transform 0.3s ease',
       }}>
-        <div style={{ fontSize: 22, fontWeight: 700, color: 'var(--accent-primary)', marginBottom: 20 }}>
+        <div style={{ fontSize: 22, fontWeight: 700, color: '#4fc3f7', marginBottom: 20 }}>
           Server Creator
         </div>
 
         {phase === 'checking' && (
           <>
             <div className="spinner" style={{ width: 28, height: 28, margin: '8px auto 16px' }} />
-            <div style={{ color: 'var(--text-secondary)', fontSize: 13 }}>Checking for updates...</div>
+            <div style={{ color: '#9e9e9e', fontSize: 13 }}>Checking for updates...</div>
           </>
         )}
 
         {phase === 'available' && (
           <>
-            <span className="material-symbols-outlined" style={{ fontSize: 40, color: 'var(--accent-warning)', marginBottom: 12 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 40, color: '#ffa726', marginBottom: 12 }}>
               system_update
             </span>
             <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Update Available</div>
-            <div style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 20 }}>
+            <div style={{ color: '#9e9e9e', fontSize: 12, marginBottom: 20 }}>
               Server Creator v{version} is ready to download
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
@@ -120,26 +124,26 @@ export default function UpdateScreen({ onComplete }: UpdateScreenProps) {
             <div className="spinner" style={{ width: 22, height: 22, margin: '8px auto 16px' }} />
             <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 12 }}>Downloading Update...</div>
             <div style={{
-              width: '100%', height: 6, background: 'var(--bg-surface)',
+              width: '100%', height: 6, background: '#2a2a4a',
               borderRadius: 3, overflow: 'hidden',
             }}>
               <div style={{
                 width: `${progress}%`, height: '100%',
-                background: 'var(--accent-primary)',
+                background: '#4fc3f7',
                 borderRadius: 3, transition: 'width 0.3s ease',
               }} />
             </div>
-            <div style={{ color: 'var(--text-muted)', fontSize: 12, marginTop: 8 }}>{progress}%</div>
+            <div style={{ color: '#9e9e9e', fontSize: 12, marginTop: 8 }}>{progress}%</div>
           </div>
         )}
 
         {phase === 'downloaded' && (
           <>
-            <span className="material-symbols-outlined" style={{ fontSize: 40, color: 'var(--accent-success)', marginBottom: 12 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 40, color: '#66bb6a', marginBottom: 12 }}>
               check_circle
             </span>
             <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Update Ready</div>
-            <div style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 20 }}>
+            <div style={{ color: '#9e9e9e', fontSize: 12, marginBottom: 20 }}>
               v{version} downloaded — restart to install
             </div>
             <div style={{ display: 'flex', gap: 10, justifyContent: 'center' }}>
@@ -156,11 +160,11 @@ export default function UpdateScreen({ onComplete }: UpdateScreenProps) {
 
         {phase === 'error' && (
           <>
-            <span className="material-symbols-outlined" style={{ fontSize: 40, color: 'var(--accent-error)', marginBottom: 12 }}>
+            <span className="material-symbols-outlined" style={{ fontSize: 40, color: '#ef5350', marginBottom: 12 }}>
               error
             </span>
-            <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Update Check Failed</div>
-            <div style={{ color: 'var(--text-muted)', fontSize: 12, marginBottom: 20 }}>
+            <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Update Failed</div>
+            <div style={{ color: '#9e9e9e', fontSize: 12, marginBottom: 20 }}>
               {errorMsg}
             </div>
             <button className="btn btn-primary" onClick={() => setPhase('done')}>
