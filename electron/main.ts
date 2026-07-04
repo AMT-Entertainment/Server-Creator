@@ -3,11 +3,12 @@ import { autoUpdater } from 'electron-updater';
 import * as path from 'path';
 import * as fs from 'fs';
 import * as os from 'os';
-import { ServerManager } from './services/server-manager';
+import { FeatureManager } from './services/feature-manager';
+import { FileManager } from './services/file-manager';
 import { ModrinthAPI } from './services/modrinth-api';
 import { PortChecker } from './services/port-checker';
-import { TunnelingService, setMainWindowCallback } from './services/tunneling';
-import { FileManager } from './services/file-manager';
+import { ServerManager } from './services/server-manager';
+import { TunnelingService } from './services/tunneling';
 import { VersionFetcher } from './services/version-fetcher';
 
 let mainWindow: BrowserWindow | null = null;
@@ -17,6 +18,7 @@ const portChecker = new PortChecker();
 const tunnelingService = new TunnelingService();
 const fileManager = new FileManager();
 const versionFetcher = new VersionFetcher();
+const featureManager = new FeatureManager();
 
 const CONFIG_PATH = path.join(os.homedir(), '.server-creator', 'config.json');
 
@@ -184,12 +186,6 @@ app.whenReady().then(() => {
   createWindow();
   setupAutoUpdater();
 
-  setMainWindowCallback((channel, data) => {
-    if (mainWindow && !mainWindow.isDestroyed()) {
-      mainWindow.webContents.send(channel, data);
-    }
-  });
-
   checkForUpdates();
   updateCheckInterval = setInterval(checkForUpdates, 3600000);
 
@@ -236,14 +232,32 @@ ipcMain.handle('autostart:set', (_event, settings: { autoStart: boolean; autoSta
   return { success: true };
 });
 
-// Playit.gg tunneling
-ipcMain.handle('tunnel:playit:ensure', async () => {
-  const installed = await tunnelingService.ensurePlayitAgent();
-  return { success: installed };
+// Feature manager
+ipcMain.handle('features:new', () => {
+  return { features: featureManager.getNewFeatures(app.getVersion()) };
 });
 
-ipcMain.handle('tunnel:playit:claim-url', () => {
-  return { url: tunnelingService.getPlayitClaimUrl() };
+ipcMain.handle('features:acknowledge', (_event, featureId: string) => {
+  featureManager.acknowledgeFeature(featureId);
+  return { success: true };
+});
+
+ipcMain.handle('features:get-config', (_event, key: string, defaultValue?: any) => {
+  return { value: featureManager.getConfig(key, defaultValue) };
+});
+
+ipcMain.handle('features:set-config', (_event, key: string, value: any) => {
+  featureManager.setConfig(key, value);
+  return { success: true };
+});
+
+ipcMain.handle('features:get-all-config', () => {
+  return { config: featureManager.getAllConfig() };
+});
+
+ipcMain.handle('features:next', () => {
+  const feature = featureManager.getNextUnacknowledged(app.getVersion());
+  return { feature };
 });
 
 // Server list

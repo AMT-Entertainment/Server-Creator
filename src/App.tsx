@@ -7,6 +7,7 @@ import SetupWizard from './pages/SetupWizard';
 import Settings from './pages/Settings';
 import { ToastProvider } from './components/Toast';
 import UpdateScreen from './components/UpdateScreen';
+import FeaturePromo from './components/FeaturePromo';
 
 function App() {
   const { t } = useTranslation();
@@ -105,6 +106,7 @@ function App() {
           </Routes>
         </main>
       </div>
+      <FeaturePromo />
     </ToastProvider>
   );
 }

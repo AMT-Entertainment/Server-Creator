@@ -8,7 +8,6 @@ export default function Settings() {
   const [autoStart, setAutoStart] = useState(false);
   const [servers, setServers] = useState<any[]>([]);
   const [autoStartServers, setAutoStartServers] = useState<string[]>([]);
-  const [playitClaimUrl, setPlayitClaimUrl] = useState<string | null>(null);
 
   useEffect(() => {
     if (!window.electronAPI) return;
@@ -24,13 +23,6 @@ export default function Settings() {
       setAutoStartServers(result.autoStartServers);
     });
     window.electronAPI.getServers().then(setServers);
-    window.electronAPI.getPlayitClaimUrl().then(r => {
-      if (r.url) setPlayitClaimUrl(r.url);
-    });
-    const unsub = window.electronAPI.onPlayitClaim((data) => {
-      setPlayitClaimUrl(data.url);
-    });
-    return unsub;
   }, []);
 
   const handleCheck = async () => {
@@ -123,33 +115,6 @@ export default function Settings() {
         )}
       </div>
 
-      {playitClaimUrl && (
-        <div className="card mt-16" style={{ maxWidth: 500, borderColor: 'rgba(79, 195, 247, 0.3)' }}>
-          <div className="card-header">
-            <span className="card-title" style={{ color: 'var(--accent-info)' }}>Playit.gg Setup Required</span>
-          </div>
-          <p className="text-sm mb-8">
-            To use the free persistent tunnel, visit the link below to claim your tunnel:
-          </p>
-          <a
-            href={playitClaimUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            style={{
-              color: 'var(--accent-primary)',
-              fontFamily: 'var(--font-mono)',
-              fontSize: 12,
-              wordBreak: 'break-all',
-            }}
-          >
-            {playitClaimUrl}
-          </a>
-          <p className="text-sm text-muted mt-8">
-            After claiming, restart the tunnel for it to work. The tunnel address will be persistent.
-          </p>
-        </div>
-      )}
-
       <div className="card mt-16" style={{ maxWidth: 500 }}>
         <div className="card-header">
           <span className="card-title">Server Creator</span>
@@ -157,7 +122,7 @@ export default function Settings() {
         <div className="flex flex-col gap-8">
           <div className="flex justify-between">
             <span className="text-muted">Version</span>
-            <span>1.2.3</span>
+            <span>1.3.0</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted">Developer</span>

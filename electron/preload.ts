@@ -40,6 +40,14 @@ contextBridge.exposeInMainWorld('electronAPI', {
     return () => ipcRenderer.removeListener('server:status:changed', handler);
   },
 
+  // Features
+  getNewFeatures: () => ipcRenderer.invoke('features:new'),
+  acknowledgeFeature: (featureId: string) => ipcRenderer.invoke('features:acknowledge', featureId),
+  getFeatureConfig: (key: string, defaultValue?: any) => ipcRenderer.invoke('features:get-config', key, defaultValue),
+  setFeatureConfig: (key: string, value: any) => ipcRenderer.invoke('features:set-config', key, value),
+  getAllFeatureConfig: () => ipcRenderer.invoke('features:get-all-config'),
+  getNextFeature: () => ipcRenderer.invoke('features:next'),
+
   // Port checking
   checkPort: (port: number) => ipcRenderer.invoke('port:check', port),
 
@@ -63,8 +71,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getTunnelStatus: (serverId: string) => ipcRenderer.invoke('tunnel:status', serverId),
   getPublicIp: () => ipcRenderer.invoke('tunnel:public-ip'),
   getLocalIp: () => ipcRenderer.invoke('tunnel:local-ip'),
-  ensurePlayitAgent: () => ipcRenderer.invoke('tunnel:playit:ensure'),
-  getPlayitClaimUrl: () => ipcRenderer.invoke('tunnel:playit:claim-url'),
   onTunnelReady: (callback: (data: { serverId: string; url: string }) => void) => {
     const handler = (_event: any, data: { serverId: string; url: string }) => callback(data);
     ipcRenderer.on('server:tunnel:ready', handler);
@@ -74,11 +80,6 @@ contextBridge.exposeInMainWorld('electronAPI', {
     const handler = (_event: any, data: { serverId: string; port: number }) => callback(data);
     ipcRenderer.on('server:tunnel:starting', handler);
     return () => ipcRenderer.removeListener('server:tunnel:starting', handler);
-  },
-  onPlayitClaim: (callback: (data: { url: string }) => void) => {
-    const handler = (_event: any, data: { url: string }) => callback(data);
-    ipcRenderer.on('playit:claim', handler);
-    return () => ipcRenderer.removeListener('playit:claim', handler);
   },
 
   // Auto-start

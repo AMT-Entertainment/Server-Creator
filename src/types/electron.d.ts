@@ -79,6 +79,17 @@ export interface FileEntry {
   modified: Date;
 }
 
+export interface FeatureDef {
+  id: string;
+  version: string;
+  title: string;
+  description: string;
+  type: 'info' | 'config';
+  configKey?: string;
+  defaultValue?: any;
+  options?: { label: string; value: any }[];
+}
+
 export interface ElectronAPI {
   getServers: () => Promise<ServerConfig[]>;
   getServer: (id: string) => Promise<ServerConfig | null>;
@@ -109,11 +120,8 @@ export interface ElectronAPI {
   getTunnelStatus: (serverId: string) => Promise<TunnelStatus>;
   getPublicIp: () => Promise<string | null>;
   getLocalIp: () => Promise<string | null>;
-  ensurePlayitAgent: () => Promise<{ success: boolean }>;
-  getPlayitClaimUrl: () => Promise<{ url: string | null }>;
   onTunnelReady: (callback: (data: { serverId: string; url: string }) => void) => () => void;
   onTunnelStarting: (callback: (data: { serverId: string; port: number }) => void) => () => void;
-  onPlayitClaim: (callback: (data: { url: string }) => void) => () => void;
 
   // Auto-start
   getAutoStart: () => Promise<{ autoStart: boolean; autoStartServers: string[]; loginItemEnabled: boolean }>;
@@ -133,6 +141,14 @@ export interface ElectronAPI {
   onUpdateState: (callback: (state: { status: string; version?: string; progress?: number; error?: string }) => void) => () => void;
   openFileDialog: (options: any) => Promise<any>;
   saveFileDialog: (options: any) => Promise<any>;
+
+  // Feature manager
+  getNewFeatures: () => Promise<{ features: FeatureDef[] }>;
+  acknowledgeFeature: (featureId: string) => Promise<{ success: boolean }>;
+  getFeatureConfig: (key: string, defaultValue?: any) => Promise<{ value: any }>;
+  setFeatureConfig: (key: string, value: any) => Promise<{ success: boolean }>;
+  getAllFeatureConfig: () => Promise<{ config: Record<string, any> }>;
+  getNextFeature: () => Promise<{ feature: FeatureDef | null }>;
 }
 
 declare global {
