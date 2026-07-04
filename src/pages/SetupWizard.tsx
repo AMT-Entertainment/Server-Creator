@@ -94,13 +94,20 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
 
   const canProceed = () => {
     switch (step) {
-      case 0: return !!loader;
-      case 1: return !!version;
-      case 2: return !!name && name.length >= 2 && portAvailable === true;
-      case 3: return true;
-      case 4: return ram >= 1 && ram <= systemRam.maxServerRam;
-      case 5: return true;
-      default: return false;
+      case 0:
+        return !!loader;
+      case 1:
+        return !!version;
+      case 2:
+        return !!name && name.length >= 2 && portAvailable === true;
+      case 3:
+        return true;
+      case 4:
+        return ram >= 1 && ram <= systemRam.maxServerRam;
+      case 5:
+        return true;
+      default:
+        return false;
     }
   };
 
@@ -123,11 +130,11 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
     setProgressSteps(initialSteps);
 
     const updateStep = (stepId: string, status: ProgressStep['status'], detail?: string) => {
-      setProgressSteps(prev => prev.map(s => s.id === stepId ? { ...s, status, detail } : s));
+      setProgressSteps(prev => prev.map(s => (s.id === stepId ? { ...s, status, detail } : s)));
     };
 
     if (window.electronAPI) {
-      progressUnsubRef.current = window.electronAPI.onCreationProgress((data) => {
+      progressUnsubRef.current = window.electronAPI.onCreationProgress(data => {
         const stepMap: Record<string, string> = {
           dirs: 'dirs',
           download: 'download',
@@ -278,18 +285,20 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                 <div style={{ maxHeight: 300, overflowY: 'auto', display: 'flex', flexDirection: 'column', gap: 2 }}>
                   {Object.entries(groupVersions(versions)).map(([major, vers]) => (
                     <div key={major}>
-                      <div style={{
-                        padding: '6px 10px',
-                        fontSize: 11,
-                        fontWeight: 600,
-                        color: 'var(--text-muted)',
-                        textTransform: 'uppercase',
-                        letterSpacing: '0.5px',
-                        background: 'var(--bg-surface)',
-                        borderRadius: 'var(--border-radius-sm)',
-                        marginBottom: 4,
-                        marginTop: 4,
-                      }}>
+                      <div
+                        style={{
+                          padding: '6px 10px',
+                          fontSize: 11,
+                          fontWeight: 600,
+                          color: 'var(--text-muted)',
+                          textTransform: 'uppercase',
+                          letterSpacing: '0.5px',
+                          background: 'var(--bg-surface)',
+                          borderRadius: 'var(--border-radius-sm)',
+                          marginBottom: 4,
+                          marginTop: 4,
+                        }}
+                      >
                         Minecraft {major}.x
                       </div>
                       {vers.map(v => (
@@ -307,12 +316,17 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                           }}
                           onClick={() => setVersion(v.version)}
                         >
-                          <span className="material-symbols-outlined" style={{ fontSize: 18, color: v.stable ? 'var(--accent-success)' : 'var(--accent-warning)' }}>
+                          <span
+                            className="material-symbols-outlined"
+                            style={{ fontSize: 18, color: v.stable ? 'var(--accent-success)' : 'var(--accent-warning)' }}
+                          >
                             {v.stable ? 'check_circle' : 'warning'}
                           </span>
                           <span style={{ fontWeight: 500 }}>{v.version}</span>
                           {!v.stable && (
-                            <span className="badge badge-stopped" style={{ marginLeft: 'auto' }}>Experimental</span>
+                            <span className="badge badge-stopped" style={{ marginLeft: 'auto' }}>
+                              Experimental
+                            </span>
                           )}
                         </div>
                       ))}
@@ -357,12 +371,17 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                   max={65535}
                 />
                 {port && parseInt(port, 10) >= 1024 && parseInt(port, 10) <= 65535 && (
-                  <p className="hint" style={{ color: portAvailable === true ? 'var(--accent-success)' : portAvailable === false ? 'var(--accent-error)' : undefined }}>
+                  <p
+                    className="hint"
+                    style={{
+                      color: portAvailable === true ? 'var(--accent-success)' : portAvailable === false ? 'var(--accent-error)' : undefined,
+                    }}
+                  >
                     {portAvailable === null
                       ? t('wizard.portCheck')
                       : portAvailable
-                      ? t('wizard.portAvailable', { port })
-                      : t('wizard.portInUse', { port })}
+                        ? t('wizard.portAvailable', { port })
+                        : t('wizard.portInUse', { port })}
                   </p>
                 )}
                 {port && (parseInt(port, 10) < 1024 || parseInt(port, 10) > 65535) && (
@@ -395,7 +414,9 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                   <label className="label">{t('wizard.gamemode')}</label>
                   <select className="select" value={gamemode} onChange={e => setGamemode(e.target.value as ServerConfig['gamemode'])}>
                     {GAMEMODES.map(gm => (
-                      <option key={gm} value={gm}>{t(`wizard.${gm}`)}</option>
+                      <option key={gm} value={gm}>
+                        {t(`wizard.${gm}`)}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -403,7 +424,9 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                   <label className="label">{t('wizard.difficulty')}</label>
                   <select className="select" value={difficulty} onChange={e => setDifficulty(e.target.value as ServerConfig['difficulty'])}>
                     {DIFFICULTIES.map(d => (
-                      <option key={d} value={d}>{t(`wizard.${d}`)}</option>
+                      <option key={d} value={d}>
+                        {t(`wizard.${d}`)}
+                      </option>
                     ))}
                   </select>
                 </div>
@@ -412,22 +435,26 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                 <label className="label">{t('wizard.icon')}</label>
                 <p className="hint mb-8">{t('wizard.iconDesc')}</p>
                 <div className="flex gap-12 items-center">
-                  <div style={{
-                    width: 64,
-                    height: 64,
-                    borderRadius: 10,
-                    background: 'var(--bg-surface)',
-                    display: 'flex',
-                    alignItems: 'center',
-                    justifyContent: 'center',
-                    overflow: 'hidden',
-                    border: '2px dashed var(--border-color)',
-                    flexShrink: 0,
-                  }}>
+                  <div
+                    style={{
+                      width: 64,
+                      height: 64,
+                      borderRadius: 10,
+                      background: 'var(--bg-surface)',
+                      display: 'flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      overflow: 'hidden',
+                      border: '2px dashed var(--border-color)',
+                      flexShrink: 0,
+                    }}
+                  >
                     {iconPreview ? (
                       <img src={iconPreview} alt="Preview" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
                     ) : (
-                      <span className="material-symbols-outlined" style={{ fontSize: 28, color: 'var(--text-muted)' }}>image</span>
+                      <span className="material-symbols-outlined" style={{ fontSize: 28, color: 'var(--text-muted)' }}>
+                        image
+                      </span>
                     )}
                   </div>
                   <div className="flex gap-8">
@@ -436,7 +463,13 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
                       {t('wizard.iconSelect')}
                     </button>
                     {icon && (
-                      <button className="btn btn-ghost btn-sm" onClick={() => { setIcon(''); setIconPreview(''); }}>
+                      <button
+                        className="btn btn-ghost btn-sm"
+                        onClick={() => {
+                          setIcon('');
+                          setIconPreview('');
+                        }}
+                      >
                         {t('wizard.iconRemove')}
                       </button>
                     )}
@@ -497,11 +530,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
             </div>
             <div className="flex items-center gap-12 mb-16">
               <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={tunnelEnabled}
-                  onChange={e => setTunnelEnabled(e.target.checked)}
-                />
+                <input type="checkbox" checked={tunnelEnabled} onChange={e => setTunnelEnabled(e.target.checked)} />
                 <span className="switch-slider"></span>
               </label>
               <div>
@@ -511,11 +540,7 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
             </div>
             <div className="flex items-center gap-12">
               <label className="switch">
-                <input
-                  type="checkbox"
-                  checked={autoRestart}
-                  onChange={e => setAutoRestart(e.target.checked)}
-                />
+                <input type="checkbox" checked={autoRestart} onChange={e => setAutoRestart(e.target.checked)} />
                 <span className="switch-slider"></span>
               </label>
               <div>
@@ -592,14 +617,14 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
             <React.Fragment key={i}>
               <div className={`wizard-step-dot ${i === step ? 'active' : ''} ${i < step ? 'completed' : ''}`}>
                 {i < step ? (
-                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>check</span>
+                  <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                    check
+                  </span>
                 ) : (
                   i + 1
                 )}
               </div>
-              {i < totalSteps - 1 && (
-                <div className={`wizard-step-line ${i < step ? 'completed' : ''}`} />
-              )}
+              {i < totalSteps - 1 && <div className={`wizard-step-line ${i < step ? 'completed' : ''}`} />}
             </React.Fragment>
           ))}
         </div>
@@ -622,19 +647,11 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
             </button>
 
             {step < totalSteps - 1 ? (
-              <button
-                className="btn btn-primary"
-                disabled={!canProceed()}
-                onClick={() => setStep(step + 1)}
-              >
+              <button className="btn btn-primary" disabled={!canProceed()} onClick={() => setStep(step + 1)}>
                 {t('wizard.next')}
               </button>
             ) : (
-              <button
-                className="btn btn-success btn-lg"
-                disabled={creating}
-                onClick={handleCreate}
-              >
+              <button className="btn btn-success btn-lg" disabled={creating} onClick={handleCreate}>
                 {creating ? (
                   <>
                     <div className="spinner" style={{ width: 16, height: 16 }} />

@@ -31,7 +31,7 @@ const statusConfig: Record<string, { label: string; className: string }> = {
   crashed: { label: 'Crashed', className: 'badge-crashed' },
 };
 
-export default function Home({ servers, onServersChange }: HomeProps) {
+export default function Home({ servers, onServersChange: _onServersChange }: HomeProps) {
   const navigate = useNavigate();
   const { t } = useTranslation();
   const [serverStatuses, setServerStatuses] = React.useState<Record<string, string>>({});
@@ -90,9 +90,7 @@ export default function Home({ servers, onServersChange }: HomeProps) {
         <div>
           <h1 style={{ fontSize: 22, fontWeight: 700 }}>{t('home.title')}</h1>
           <p className="text-muted text-sm mt-8">
-            {servers.length > 0
-              ? t('home.serverCount', { count: servers.length })
-              : t('home.noServers')}
+            {servers.length > 0 ? t('home.serverCount', { count: servers.length }) : t('home.noServers')}
           </p>
         </div>
         <button className="btn btn-primary btn-lg" onClick={() => navigate('/setup')}>
@@ -106,10 +104,7 @@ export default function Home({ servers, onServersChange }: HomeProps) {
           <span className="material-symbols-outlined icon">dns</span>
           <h3>{t('home.noServers')}</h3>
           <p>{t('home.noServersDesc')}</p>
-          <button
-            className="btn btn-primary btn-lg mt-24"
-            onClick={() => navigate('/setup')}
-          >
+          <button className="btn btn-primary btn-lg mt-24" onClick={() => navigate('/setup')}>
             <span className="material-symbols-outlined">add</span>
             {t('home.createServer')}
           </button>
@@ -117,19 +112,13 @@ export default function Home({ servers, onServersChange }: HomeProps) {
       ) : (
         <div className="grid">
           {servers.map(server => (
-            <div
-              key={server.id}
-              className="card server-card fade-in"
-              onClick={() => navigate(`/server/${server.id}`)}
-            >
+            <div key={server.id} className="card server-card fade-in" onClick={() => navigate(`/server/${server.id}`)}>
               <div className="server-card-header">
                 <div className="server-icon">
                   {server.icon ? (
                     <img src={server.icon} alt={server.name} />
                   ) : (
-                    <span className="material-symbols-outlined default-icon">
-                      {loaderIcons[server.loader] || 'dns'}
-                    </span>
+                    <span className="material-symbols-outlined default-icon">{loaderIcons[server.loader] || 'dns'}</span>
                   )}
                 </div>
                 <div className="server-info">
@@ -138,9 +127,7 @@ export default function Home({ servers, onServersChange }: HomeProps) {
                     {server.loader} {server.version}
                   </div>
                 </div>
-                <span className={getStatusClass(server.id)}>
-                  {getStatusLabel(server.id)}
-                </span>
+                <span className={getStatusClass(server.id)}>{getStatusLabel(server.id)}</span>
               </div>
               <div className="server-stats">
                 <div className="server-stat">

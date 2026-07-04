@@ -1,8 +1,9 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { useTranslation } from 'react-i18next';
 import InstallProgress, { InstallStep } from '../components/InstallProgress';
 import { useToast } from '../components/Toast';
+import type { ServerConfig, FileEntry, ModrinthProject, ModrinthVersion } from '../types/electron';
 
 interface ServerDetailProps {
   onServersChange: () => void;
@@ -10,13 +11,13 @@ interface ServerDetailProps {
 
 type Tab = 'console' | 'logs' | 'players' | 'mods' | 'config' | 'advanced';
 
-export default function ServerDetail({ onServersChange }: ServerDetailProps) {
+export default function ServerDetail({ onServersChange: _onServersChange }: ServerDetailProps) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { t } = useTranslation();
   const { showToast } = useToast();
   const [activeTab, setActiveTab] = useState<Tab>('console');
-  const [server, setServer] = useState<any>(null);
+  const [server, setServer] = useState<ServerConfig | null>(null);
   const [status, setStatus] = useState<string>('stopped');
   const [terminalLines, setTerminalLines] = useState<string[]>([]);
   const [command, setCommand] = useState('');
@@ -40,7 +41,10 @@ export default function ServerDetail({ onServersChange }: ServerDetailProps) {
   }, [id]);
 
   const loadServer = async () => {
-    if (!id || !window.electronAPI) { setLoading(false); return; }
+    if (!id || !window.electronAPI) {
+      setLoading(false);
+      return;
+    }
     try {
       const s = await window.electronAPI.getServer(id);
       if (!s) {
@@ -61,8 +65,14 @@ export default function ServerDetail({ onServersChange }: ServerDetailProps) {
       setTunnelStatus(tStatus.status);
       setTunnelUrl(tStatus.url || '');
 
-      window.electronAPI.getPublicIp().then(setPublicIp).catch(() => {});
-      window.electronAPI.getLocalIp().then(setLocalIp).catch(() => {});
+      window.electronAPI
+        .getPublicIp()
+        .then(setPublicIp)
+        .catch(() => {});
+      window.electronAPI
+        .getLocalIp()
+        .then(setLocalIp)
+        .catch(() => {});
 
       if (statusResult.status === 'running' && !tStatus.url) {
         startTunnelForServer();
@@ -82,7 +92,7 @@ export default function ServerDetail({ onServersChange }: ServerDetailProps) {
         setTerminalLines(prev => [...prev, output]);
       }
     });
-    const unsubStatus = window.electronAPI.onServerStatusChanged((sid, newStatus, data) => {
+    const unsubStatus = window.electronAPI.onServerStatusChanged((sid, newStatus, _data) => {
       if (sid === id) {
         setStatus(newStatus);
         if (newStatus === 'crashed') {
@@ -156,7 +166,7 @@ export default function ServerDetail({ onServersChange }: ServerDetailProps) {
     }
   };
 
-  const removeProtocol = (u: string) => u.replace(/^https?:\/\//, '').replace(/\/$/, '');
+  const _removeProtocol = (u: string) => u.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
   const handleStart = async () => {
     if (!id || !window.electronAPI) return;
@@ -220,19 +230,19 @@ export default function ServerDetail({ onServersChange }: ServerDetailProps) {
   return (
     <div className="server-detail">
       <div className="toolbar">
-        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')}>
-          <span className="material-symbols-outlined">arrow_back</span>
+        <button className="btn btn-ghost btn-sm" onClick={() => navigate('/')} aria-label="Go back">
+          <span className="material-symbols-outlined" aria-hidden="true">
+            arrow_back
+          </span>
         </button>
-        <div className="toolbar-title">
-          {server.name}
-        </div>
-        <span className={statusBadge(status)}>
-          {t(`home.status.${status}`)}
-        </span>
+        <div className="toolbar-title">{server.name}</div>
+        <span className={statusBadge(status)}>{t(`home.status.${status}`)}</span>
         <div className="toolbar-actions">
           {(status === 'stopped' || status === 'crashed') && (
             <button className="btn btn-success" onClick={handleStart}>
-              <span className="material-symbols-outlined icon-sm">play_arrow</span>
+              <span className="material-symbols-outlined icon-sm" aria-hidden="true">
+                play_arrow
+              </span>
               {t('server.start')}
             </button>
           )}
@@ -251,74 +261,136 @@ export default function ServerDetail({ onServersChange }: ServerDetailProps) {
         </div>
       </div>
 
-      <div style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: 20,
-        padding: '10px 24px',
-        background: 'var(--bg-surface)',
-        borderBottom: '1px solid var(--border-color)',
-        fontSize: 13,
-      }}>
+      <div
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: 20,
+          padding: '10px 24px',
+          background: 'var(--bg-surface)',
+          borderBottom: '1px solid var(--border-color)',
+          fontSize: 13,
+        }}
+      >
         {(() => {
           const p = server?.port || 25565;
           if (tunnelStatus === 'running' && tunnelUrl) {
             return (
               <div className="flex items-center gap-4" style={{ color: 'var(--accent-success)' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>public</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                  public
+                </span>
                 <span style={{ fontWeight: 500 }}>{tunnelUrl.includes(':') ? tunnelUrl : `${tunnelUrl}:${p}`}</span>
-                <span className={`material-symbols-outlined copy-btn ${copied ? 'copied' : ''}`} onClick={copyIp}>content_copy</span>
+                <span
+                  className={`material-symbols-outlined copy-btn ${copied ? 'copied' : ''}`}
+                  onClick={copyIp}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') copyIp();
+                  }}
+                  aria-label={`Copy ${copied ? 'copied' : 'IP'}`}
+                >
+                  content_copy
+                </span>
               </div>
             );
           }
           if (publicIp) {
             return (
               <div className="flex items-center gap-4" style={{ color: 'var(--accent-info)' }}>
-                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>globe</span>
-                <span style={{ fontWeight: 500 }}>{publicIp}:{p}</span>
-                <span className={`material-symbols-outlined copy-btn ${copied ? 'copied' : ''}`} onClick={copyIp}>content_copy</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                  globe
+                </span>
+                <span style={{ fontWeight: 500 }}>
+                  {publicIp}:{p}
+                </span>
+                <span
+                  className={`material-symbols-outlined copy-btn ${copied ? 'copied' : ''}`}
+                  onClick={copyIp}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') copyIp();
+                  }}
+                  aria-label={`Copy ${copied ? 'copied' : 'IP'}`}
+                >
+                  content_copy
+                </span>
               </div>
             );
           }
           if (localIp) {
             return (
               <div className="flex items-center gap-4">
-                <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--text-muted)' }}>cable</span>
-                <span style={{ fontWeight: 500 }}>{localIp}:{p}</span>
-                <span className={`material-symbols-outlined copy-btn ${copied ? 'copied' : ''}`} onClick={copyIp}>content_copy</span>
+                <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--text-muted)' }}>
+                  cable
+                </span>
+                <span style={{ fontWeight: 500 }}>
+                  {localIp}:{p}
+                </span>
+                <span
+                  className={`material-symbols-outlined copy-btn ${copied ? 'copied' : ''}`}
+                  onClick={copyIp}
+                  role="button"
+                  tabIndex={0}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') copyIp();
+                  }}
+                  aria-label={`Copy ${copied ? 'copied' : 'IP'}`}
+                >
+                  content_copy
+                </span>
               </div>
             );
           }
           return (
             <div className="flex items-center gap-4">
-              <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--text-muted)' }}>cable</span>
+              <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--text-muted)' }}>
+                cable
+              </span>
               <span style={{ fontWeight: 500 }}>{p === 25565 ? 'localhost' : `localhost:${p}`}</span>
-              <span className={`material-symbols-outlined copy-btn ${copied ? 'copied' : ''}`} onClick={copyIp}>content_copy</span>
+              <span
+                className={`material-symbols-outlined copy-btn ${copied ? 'copied' : ''}`}
+                onClick={copyIp}
+                role="button"
+                tabIndex={0}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') copyIp();
+                }}
+                aria-label={`Copy ${copied ? 'copied' : 'IP'}`}
+              >
+                content_copy
+              </span>
             </div>
           );
         })()}
         <div className="flex items-center gap-4">
-          <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--text-muted)' }}>memory</span>
+          <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--text-muted)' }}>
+            memory
+          </span>
           <span>{server?.ram ?? '?'} GB</span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--text-muted)' }}>groups</span>
+          <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--text-muted)' }}>
+            groups
+          </span>
           <span>0/{server?.maxPlayers ?? '?'}</span>
         </div>
         <div className="flex items-center gap-4">
-          <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--text-muted)' }}>description</span>
-          <span>{server?.loader ?? '?'} {server?.version ?? ''}</span>
+          <span className="material-symbols-outlined" style={{ fontSize: 16, color: 'var(--text-muted)' }}>
+            description
+          </span>
+          <span>
+            {server?.loader ?? '?'} {server?.version ?? ''}
+          </span>
         </div>
       </div>
 
       <div className="server-detail-tabs">
         <div className="tabs">
           {tabs.map(tab => (
-            <div
-              key={tab.id}
-              className={`tab ${activeTab === tab.id ? 'active' : ''}`}
-              onClick={() => setActiveTab(tab.id)}
-            >
+            <div key={tab.id} className={`tab ${activeTab === tab.id ? 'active' : ''}`} onClick={() => setActiveTab(tab.id)}>
               <span className="material-symbols-outlined icon-sm">{tab.icon}</span>
               {tab.label}
             </div>
@@ -331,17 +403,15 @@ export default function ServerDetail({ onServersChange }: ServerDetailProps) {
           <div className="terminal" style={{ height: 'calc(100vh - 200px)' }}>
             <div className="terminal-header">
               <span>{t('server.terminal')}</span>
-              <span style={{ fontSize: 11 }}>{server.loader} {server.version}</span>
+              <span style={{ fontSize: 11 }}>
+                {server.loader} {server.version}
+              </span>
             </div>
             <div className="terminal-body" ref={terminalRef}>
               {terminalLines.length === 0 ? (
-                <span style={{ color: 'var(--text-muted)' }}>
-                  {t('common.loading')}
-                </span>
+                <span style={{ color: 'var(--text-muted)' }}>{t('common.loading')}</span>
               ) : (
-                terminalLines.map((line, i) => (
-                  <React.Fragment key={i}>{line}</React.Fragment>
-                ))
+                terminalLines.map((line, i) => <React.Fragment key={i}>{line}</React.Fragment>)
               )}
             </div>
             <div className="terminal-input-row">
@@ -361,7 +431,7 @@ export default function ServerDetail({ onServersChange }: ServerDetailProps) {
         )}
 
         {activeTab === 'logs' && <LogsView id={id!} logs={logs} setLogs={setLogs} />}
-        {activeTab === 'players' && <PlayersView id={id!} server={server} />}
+        {activeTab === 'players' && <PlayersView id={id!} />}
         {activeTab === 'mods' && <ModsView id={id!} server={server} />}
         {activeTab === 'config' && <ConfigView id={id!} />}
         {activeTab === 'advanced' && <AdvancedView id={id!} server={server} navigate={navigate} />}
@@ -394,12 +464,15 @@ function LogsView({ id, logs, setLogs }: { id: string; logs: string[]; setLogs: 
     <div className="card">
       <div className="card-header">
         <span className="card-title">{t('server.logTitle')}</span>
-        <button className="btn btn-ghost btn-sm" onClick={async () => {
-          if (window.electronAPI) {
-            await window.electronAPI.clearLogs(id);
-            setLogs([]);
-          }
-        }}>
+        <button
+          className="btn btn-ghost btn-sm"
+          onClick={async () => {
+            if (window.electronAPI) {
+              await window.electronAPI.clearLogs(id);
+              setLogs([]);
+            }
+          }}
+        >
           {t('server.clearLogs')}
         </button>
       </div>
@@ -428,16 +501,23 @@ function LogsView({ id, logs, setLogs }: { id: string; logs: string[]; setLogs: 
   );
 }
 
-function PlayersView({ id, server }: { id: string; server: any }) {
+function PlayersView({ id }: { id: string }) {
   const { t } = useTranslation();
-  const [players, setPlayers] = useState<any[]>([]);
+  interface PlayerInfo {
+    name: string;
+    online: boolean;
+    op: boolean;
+    lastOnline: string;
+  }
+
+  const [players, setPlayers] = useState<PlayerInfo[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const parsePlayers = async () => {
       if (!window.electronAPI) return;
       const output = await window.electronAPI.getTerminalOutput(id);
-      const playerList: any[] = [];
+      const playerList: PlayerInfo[] = [];
       const onlinePlayers: string[] = [];
 
       for (const line of output) {
@@ -508,16 +588,8 @@ function PlayersView({ id, server }: { id: string; server: any }) {
                     {player.online ? t('server.online') : t('server.offline')}
                   </span>
                 </td>
-                <td>
-                  {player.op ? (
-                    <span className="badge badge-running">OP</span>
-                  ) : (
-                    <span className="text-muted">-</span>
-                  )}
-                </td>
-                <td className="text-sm text-muted">
-                  {player.online ? t('server.online') : new Date(player.lastOnline).toLocaleString()}
-                </td>
+                <td>{player.op ? <span className="badge badge-running">OP</span> : <span className="text-muted">-</span>}</td>
+                <td className="text-sm text-muted">{player.online ? t('server.online') : new Date(player.lastOnline).toLocaleString()}</td>
               </tr>
             ))}
           </tbody>
@@ -527,11 +599,11 @@ function PlayersView({ id, server }: { id: string; server: any }) {
   );
 }
 
-function ModsView({ id, server }: { id: string; server: any }) {
+function ModsView({ id, server }: { id: string; server: ServerConfig }) {
   const { t } = useTranslation();
   const [query, setQuery] = useState('');
-  const [searchResults, setSearchResults] = useState<any[]>([]);
-  const [installedMods, setInstalledMods] = useState<any[]>([]);
+  const [searchResults, setSearchResults] = useState<ModrinthProject[]>([]);
+  const [installedMods, setInstalledMods] = useState<ModrinthProject[]>([]);
   const [searching, setSearching] = useState(false);
   const [selectedLoader, setSelectedLoader] = useState(server.loader || 'all');
 
@@ -566,11 +638,13 @@ function ModsView({ id, server }: { id: string; server: any }) {
   const loadInstalledMods = async () => {
     if (!window.electronAPI) return;
     const files = await window.electronAPI.listFiles(id, 'mods');
-    const mods = files.filter(f => f.name.endsWith('.jar')).map(f => ({
-      name: f.name,
-      path: f.path,
-      size: f.size,
-    }));
+    const mods = files
+      .filter(f => f.name.endsWith('.jar'))
+      .map(f => ({
+        name: f.name,
+        path: f.path,
+        size: f.size,
+      }));
     setInstalledMods(mods);
   };
 
@@ -600,11 +674,11 @@ function ModsView({ id, server }: { id: string; server: any }) {
   const updateInstallStep = (stepId: string, status: InstallStep['status'], detail?: string) => {
     setInstallProgress(prev => ({
       ...prev,
-      steps: prev.steps.map(s => s.id === stepId ? { ...s, status, detail } : s),
+      steps: prev.steps.map(s => (s.id === stepId ? { ...s, status, detail } : s)),
     }));
   };
 
-  const handleInstall = async (project: any) => {
+  const handleInstall = async (project: ModrinthProject) => {
     if (!window.electronAPI) return;
 
     const steps: InstallStep[] = [
@@ -631,16 +705,33 @@ function ModsView({ id, server }: { id: string; server: any }) {
         return;
       }
 
-      let compatible: any = verResult.versions.find((v: any) =>
-        v.game_versions.some((gv: string) =>
-          searchVersions.some((sv: string) => gv === sv || sv.startsWith(gv) || gv.startsWith(sv))
-        ) &&
-        v.loaders.some((l: string) => l === server.loader || l === 'paper' || l === 'fabric' || l === 'forge' || l === 'purpur' || l === 'spigot' || l === 'neoforge')
+      let compatible = verResult.versions.find(
+        (v: ModrinthVersion) =>
+          v.game_versions.some((gv: string) => searchVersions.some((sv: string) => gv === sv || sv.startsWith(gv) || gv.startsWith(sv))) &&
+          v.loaders.some(
+            (l: string) =>
+              l === server.loader ||
+              l === 'paper' ||
+              l === 'fabric' ||
+              l === 'forge' ||
+              l === 'purpur' ||
+              l === 'spigot' ||
+              l === 'neoforge',
+          ),
       );
 
       if (!compatible) {
-        compatible = verResult.versions.find((v: any) =>
-          v.loaders.some((l: string) => l === server.loader || l === 'paper' || l === 'fabric' || l === 'forge' || l === 'purpur' || l === 'spigot' || l === 'neoforge')
+        compatible = verResult.versions.find((v: ModrinthVersion) =>
+          v.loaders.some(
+            (l: string) =>
+              l === server.loader ||
+              l === 'paper' ||
+              l === 'fabric' ||
+              l === 'forge' ||
+              l === 'purpur' ||
+              l === 'spigot' ||
+              l === 'neoforge',
+          ),
         );
       }
 
@@ -677,8 +768,8 @@ function ModsView({ id, server }: { id: string; server: any }) {
           setInstallProgress(prev => ({ ...prev, showActions: true }));
         },
       }));
-    } catch (e: any) {
-      updateInstallStep('download', 'error', e.message || 'Installation failed');
+    } catch (e: unknown) {
+      updateInstallStep('download', 'error', (e as Error)?.message || 'Installation failed');
     }
   };
 
@@ -716,14 +807,11 @@ function ModsView({ id, server }: { id: string; server: any }) {
             placeholder={t('server.searchMods')}
             style={{ flex: 1 }}
           />
-          <select
-            className="select"
-            value={selectedLoader}
-            onChange={e => setSelectedLoader(e.target.value)}
-            style={{ width: 140 }}
-          >
+          <select className="select" value={selectedLoader} onChange={e => setSelectedLoader(e.target.value)} style={{ width: 140 }}>
             {loaders.map(l => (
-              <option key={l} value={l}>{l === 'all' ? 'All Loaders' : l}</option>
+              <option key={l} value={l}>
+                {l === 'all' ? 'All Loaders' : l}
+              </option>
             ))}
           </select>
           <button className="btn btn-primary" onClick={handleSearch} disabled={searching}>
@@ -737,9 +825,7 @@ function ModsView({ id, server }: { id: string; server: any }) {
               <div className="mod-search-results">
                 {searchResults.map(project => (
                   <div key={project.project_id} className="mod-card">
-                    {project.icon_url && (
-                      <img src={project.icon_url} alt={project.title} />
-                    )}
+                    {project.icon_url && <img src={project.icon_url} alt={project.title} />}
                     <div className="mod-card-info">
                       <div className="mod-card-title truncate">{project.title}</div>
                       <div className="mod-card-desc">{project.description}</div>
@@ -763,14 +849,16 @@ function ModsView({ id, server }: { id: string; server: any }) {
           {!searching && searchResults.length === 0 && query && (
             <div className="empty-state">
               <span className="material-symbols-outlined icon">search</span>
-              <p>No results found for "{query}"</p>
+              <p>No results found for &quot;{query}&quot;</p>
             </div>
           )}
           {!searching && searchResults.length === 0 && !query && (
             <div className="empty-state">
               <span className="material-symbols-outlined icon">extension</span>
               <h3>Search for mods and plugins</h3>
-              <p>Search Modrinth for mods compatible with {server.loader} {server.version}</p>
+              <p>
+                Search Modrinth for mods compatible with {server.loader} {server.version}
+              </p>
             </div>
           )}
         </div>
@@ -791,7 +879,9 @@ function ModsView({ id, server }: { id: string; server: any }) {
             <div className="file-browser">
               {installedMods.map(mod => (
                 <div key={mod.name} className="file-item">
-                  <span className="material-symbols-outlined" style={{ color: 'var(--accent-info)' }}>extension</span>
+                  <span className="material-symbols-outlined" style={{ color: 'var(--accent-info)' }}>
+                    extension
+                  </span>
                   <span className="file-name truncate">{mod.name}</span>
                   <span className="file-size">{(mod.size / 1024 / 1024).toFixed(1)}MB</span>
                   <button
@@ -799,7 +889,9 @@ function ModsView({ id, server }: { id: string; server: any }) {
                     onClick={() => handleDeleteMod(mod.path)}
                     style={{ color: 'var(--accent-error)' }}
                   >
-                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>delete</span>
+                    <span className="material-symbols-outlined" style={{ fontSize: 16 }}>
+                      delete
+                    </span>
                   </button>
                 </div>
               ))}
@@ -827,7 +919,7 @@ function ModsView({ id, server }: { id: string; server: any }) {
 function ConfigView({ id }: { id: string }) {
   const { t } = useTranslation();
   const [currentDir, setCurrentDir] = useState('');
-  const [files, setFiles] = useState<any[]>([]);
+  const [files, setFiles] = useState<FileEntry[]>([]);
   const [selectedFile, setSelectedFile] = useState<string | null>(null);
   const [fileContent, setFileContent] = useState('');
   const [isBinary, setIsBinary] = useState(false);
@@ -897,8 +989,19 @@ function ConfigView({ id }: { id: string }) {
         <div className="card-header">
           <span className="card-title">{t('server.configTitle')}</span>
         </div>
-        <div className="flex items-center gap-4 mb-8" style={{ padding: '0 0 8px', borderBottom: '1px solid var(--border-color)', fontSize: 12 }}>
-          <span style={{ cursor: 'pointer', color: 'var(--accent-primary)' }} onClick={() => { setCurrentDir(''); setSelectedFile(null); }}>root</span>
+        <div
+          className="flex items-center gap-4 mb-8"
+          style={{ padding: '0 0 8px', borderBottom: '1px solid var(--border-color)', fontSize: 12 }}
+        >
+          <span
+            style={{ cursor: 'pointer', color: 'var(--accent-primary)' }}
+            onClick={() => {
+              setCurrentDir('');
+              setSelectedFile(null);
+            }}
+          >
+            root
+          </span>
           {breadcrumbs.map((crumb, i) => (
             <React.Fragment key={i}>
               <span style={{ color: 'var(--text-muted)' }}>/</span>
@@ -925,21 +1028,32 @@ function ConfigView({ id }: { id: string }) {
             <div className="file-browser">
               {breadcrumbs.length > 0 && (
                 <div className="file-item" onClick={goUp}>
-                  <span className="material-symbols-outlined" style={{ color: 'var(--accent-warning)' }}>folder</span>
-                  <span className="file-name" style={{ color: 'var(--accent-primary)' }}>..</span>
+                  <span className="material-symbols-outlined" style={{ color: 'var(--accent-warning)' }}>
+                    folder
+                  </span>
+                  <span className="file-name" style={{ color: 'var(--accent-primary)' }}>
+                    ..
+                  </span>
                 </div>
               )}
               {files.map(file => (
                 <div
                   key={file.path}
                   className="file-item"
-                  onClick={() => file.isDirectory ? navigateDir(file.path) : openFile(file.path)}
+                  onClick={() => (file.isDirectory ? navigateDir(file.path) : openFile(file.path))}
                   style={{ background: selectedFile === file.path ? 'var(--bg-surface)' : undefined }}
                 >
-                  <span className="material-symbols-outlined" style={{
-                    color: file.isDirectory ? 'var(--accent-warning)' : file.name.endsWith('.properties') ? 'var(--accent-info)' : 'var(--text-muted)',
-                    fontSize: 18,
-                  }}>
+                  <span
+                    className="material-symbols-outlined"
+                    style={{
+                      color: file.isDirectory
+                        ? 'var(--accent-warning)'
+                        : file.name.endsWith('.properties')
+                          ? 'var(--accent-info)'
+                          : 'var(--text-muted)',
+                      fontSize: 18,
+                    }}
+                  >
                     {file.isDirectory ? 'folder' : 'description'}
                   </span>
                   <span className="file-name truncate">{file.name}</span>
@@ -954,7 +1068,9 @@ function ConfigView({ id }: { id: string }) {
       {selectedFile && !isBinary && (
         <div className="card flex-1" style={{ display: 'flex', flexDirection: 'column' }}>
           <div className="card-header">
-            <span className="card-title">{t('server.fileEditor')}: {selectedFile}</span>
+            <span className="card-title">
+              {t('server.fileEditor')}: {selectedFile}
+            </span>
             <div className="flex gap-8">
               <button className="btn btn-primary btn-sm" onClick={saveFile}>
                 <span className="material-symbols-outlined icon-sm">save</span>
@@ -978,7 +1094,9 @@ function ConfigView({ id }: { id: string }) {
       {selectedFile && isBinary && (
         <div className="card flex-1 flex items-center justify-center">
           <div className="text-center">
-            <span className="material-symbols-outlined" style={{ fontSize: 48, color: 'var(--text-muted)', marginBottom: 12 }}>warning</span>
+            <span className="material-symbols-outlined" style={{ fontSize: 48, color: 'var(--text-muted)', marginBottom: 12 }}>
+              warning
+            </span>
             <p className="text-muted">Binary file cannot be edited here</p>
           </div>
         </div>
@@ -987,13 +1105,13 @@ function ConfigView({ id }: { id: string }) {
   );
 }
 
-function AdvancedView({ id, server, navigate }: { id: string; server: any; navigate: any }) {
+function AdvancedView({ id, server, navigate }: { id: string; server: ServerConfig; navigate: (to: string) => void }) {
   const { t } = useTranslation();
   const [jvmArgs, setJvmArgs] = useState('');
   const [tunnelUrl, setTunnelUrl] = useState('');
   const [tunnelStatus, setTunnelStatus] = useState('stopped');
   const [tunnelStarting, setTunnelStarting] = useState(false);
-  const [safeStop, setSafeStop] = useState(true);
+  const [_safeStop, _setSafeStop] = useState(true);
 
   useEffect(() => {
     loadJvm();
@@ -1065,14 +1183,15 @@ function AdvancedView({ id, server, navigate }: { id: string; server: any; navig
           <span className="card-title">{t('server.tunnelSection')}</span>
         </div>
         <div className="flex items-center gap-12 mb-16">
-          <span className="material-symbols-outlined" style={{ color: tunnelStatus === 'running' ? 'var(--accent-success)' : 'var(--text-muted)' }}>
+          <span
+            className="material-symbols-outlined"
+            style={{ color: tunnelStatus === 'running' ? 'var(--accent-success)' : 'var(--text-muted)' }}
+          >
             public
           </span>
           <div>
             {tunnelStatus === 'running' && tunnelUrl ? (
-              <span style={{ color: 'var(--accent-success)', fontWeight: 500 }}>
-                {t('server.tunnelActive', { url: tunnelUrl })}
-              </span>
+              <span style={{ color: 'var(--accent-success)', fontWeight: 500 }}>{t('server.tunnelActive', { url: tunnelUrl })}</span>
             ) : (
               <span className="text-muted">{t('server.tunnelInactive')}</span>
             )}
@@ -1086,9 +1205,14 @@ function AdvancedView({ id, server, navigate }: { id: string; server: any; navig
         ) : (
           <button className="btn btn-primary btn-sm" onClick={startTunnel} disabled={tunnelStarting}>
             {tunnelStarting ? (
-              <><div className="spinner" style={{ width: 14, height: 14 }} /> Starting...</>
+              <>
+                <div className="spinner" style={{ width: 14, height: 14 }} /> Starting...
+              </>
             ) : (
-              <><span className="material-symbols-outlined icon-sm">link</span>{t('server.tunnelStart')}</>
+              <>
+                <span className="material-symbols-outlined icon-sm">link</span>
+                {t('server.tunnelStart')}
+              </>
             )}
           </button>
         )}
@@ -1114,10 +1238,13 @@ function AdvancedView({ id, server, navigate }: { id: string; server: any; navig
           <span className="material-symbols-outlined icon-sm">warning</span>
           <span>{t('server.rawFilesWarning')}</span>
         </div>
-        <button className="btn btn-ghost" onClick={() => {
-          const configTab = document.querySelector('.tab:nth-child(5)') as HTMLElement;
-          if (configTab) configTab.click();
-        }}>
+        <button
+          className="btn btn-ghost"
+          onClick={() => {
+            const configTab = document.querySelector('.tab:nth-child(5)') as HTMLElement;
+            if (configTab) configTab.click();
+          }}
+        >
           <span className="material-symbols-outlined icon-sm">folder_open</span>
           {t('server.config')}
         </button>
@@ -1125,16 +1252,18 @@ function AdvancedView({ id, server, navigate }: { id: string; server: any; navig
 
       <div className="card" style={{ borderColor: 'rgba(239,83,80,0.3)' }}>
         <div className="card-header">
-          <span className="card-title" style={{ color: 'var(--accent-error)' }}>Delete Server</span>
+          <span className="card-title" style={{ color: 'var(--accent-error)' }}>
+            Delete Server
+          </span>
         </div>
-        <p className="text-sm text-muted mb-16">
-          Permanently delete this server and all its files. This action cannot be undone.
-        </p>
+        <p className="text-sm text-muted mb-16">Permanently delete this server and all its files. This action cannot be undone.</p>
         <button
           className="btn btn-danger"
           onClick={async () => {
             if (window.electronAPI) {
-              const confirmed = confirm('Are you sure you want to delete this server? All files, worlds, and configurations will be permanently removed.');
+              const confirmed = confirm(
+                'Are you sure you want to delete this server? All files, worlds, and configurations will be permanently removed.',
+              );
               if (confirmed) {
                 await window.electronAPI.deleteServer(id);
                 navigate('/');

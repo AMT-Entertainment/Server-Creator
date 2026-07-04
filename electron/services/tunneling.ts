@@ -47,11 +47,13 @@ export class TunnelingService {
 
   private killProc(proc: ChildProcess | null) {
     if (!proc || proc.killed) return;
-    try { proc.kill('SIGKILL'); } catch {}
+    try {
+      proc.kill('SIGKILL');
+    } catch {}
   }
 
   private async trySshTunnel(serverId: string, port: number): Promise<string | null> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       let done = false;
       const cleanup = () => {
         const i = this.tunnels.get(serverId);
@@ -59,19 +61,34 @@ export class TunnelingService {
         this.killProc(proc);
       };
       const timeout = setTimeout(() => {
-        if (!done) { done = true; cleanup(); resolve(null); }
+        if (!done) {
+          done = true;
+          cleanup();
+          resolve(null);
+        }
       }, 30000);
 
-      const proc = spawn('ssh', [
-        '-p', '443',
-        '-o', 'StrictHostKeyChecking=no',
-        '-o', 'UserKnownHostsFile=/dev/null',
-        '-o', 'ServerAliveInterval=30',
-        '-o', 'ConnectTimeout=15',
-        '-o', 'ExitOnForwardFailure=yes',
-        '-R', `0:localhost:${port}`,
-        'tcp@a.pinggy.io',
-      ], { stdio: ['ignore', 'pipe', 'pipe'] });
+      const proc = spawn(
+        'ssh',
+        [
+          '-p',
+          '443',
+          '-o',
+          'StrictHostKeyChecking=no',
+          '-o',
+          'UserKnownHostsFile=/dev/null',
+          '-o',
+          'ServerAliveInterval=30',
+          '-o',
+          'ConnectTimeout=15',
+          '-o',
+          'ExitOnForwardFailure=yes',
+          '-R',
+          `0:localhost:${port}`,
+          'tcp@a.pinggy.io',
+        ],
+        { stdio: ['ignore', 'pipe', 'pipe'] },
+      );
 
       const inst = this.tunnels.get(serverId);
       if (inst) inst.process = proc;
@@ -100,16 +117,26 @@ export class TunnelingService {
       proc.stdout?.on('data', onData);
       proc.stderr?.on('data', onData);
       proc.on('exit', () => {
-        if (!done) { done = true; clearTimeout(timeout); cleanup(); resolve(null); }
+        if (!done) {
+          done = true;
+          clearTimeout(timeout);
+          cleanup();
+          resolve(null);
+        }
       });
       proc.on('error', () => {
-        if (!done) { done = true; clearTimeout(timeout); cleanup(); resolve(null); }
+        if (!done) {
+          done = true;
+          clearTimeout(timeout);
+          cleanup();
+          resolve(null);
+        }
       });
     });
   }
 
   private async trySshTunnelSimple(serverId: string, port: number): Promise<string | null> {
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       let done = false;
       const cleanup = () => {
         const i = this.tunnels.get(serverId);
@@ -117,17 +144,30 @@ export class TunnelingService {
         this.killProc(proc);
       };
       const timeout = setTimeout(() => {
-        if (!done) { done = true; cleanup(); resolve(null); }
+        if (!done) {
+          done = true;
+          cleanup();
+          resolve(null);
+        }
       }, 25000);
 
-      const proc = spawn('ssh', [
-        '-o', 'StrictHostKeyChecking=no',
-        '-o', 'UserKnownHostsFile=/dev/null',
-        '-o', 'ServerAliveInterval=30',
-        '-o', 'ConnectTimeout=15',
-        '-R', `${port}:localhost:${port}`,
-        'serveo.net',
-      ], { stdio: ['ignore', 'pipe', 'pipe'] });
+      const proc = spawn(
+        'ssh',
+        [
+          '-o',
+          'StrictHostKeyChecking=no',
+          '-o',
+          'UserKnownHostsFile=/dev/null',
+          '-o',
+          'ServerAliveInterval=30',
+          '-o',
+          'ConnectTimeout=15',
+          '-R',
+          `${port}:localhost:${port}`,
+          'serveo.net',
+        ],
+        { stdio: ['ignore', 'pipe', 'pipe'] },
+      );
 
       const inst = this.tunnels.get(serverId);
       if (inst) inst.process = proc;
@@ -156,10 +196,20 @@ export class TunnelingService {
       proc.stdout?.on('data', onData);
       proc.stderr?.on('data', onData);
       proc.on('exit', () => {
-        if (!done) { done = true; clearTimeout(timeout); cleanup(); resolve(null); }
+        if (!done) {
+          done = true;
+          clearTimeout(timeout);
+          cleanup();
+          resolve(null);
+        }
       });
       proc.on('error', () => {
-        if (!done) { done = true; clearTimeout(timeout); cleanup(); resolve(null); }
+        if (!done) {
+          done = true;
+          clearTimeout(timeout);
+          cleanup();
+          resolve(null);
+        }
       });
     });
   }
@@ -190,7 +240,10 @@ export class TunnelingService {
     instance.reconnectTimer = setInterval(async () => {
       const inst = this.tunnels.get(serverId);
       if (!inst || inst.status === 'stopped') {
-        if (inst?.reconnectTimer) { clearInterval(inst.reconnectTimer); inst.reconnectTimer = null; }
+        if (inst?.reconnectTimer) {
+          clearInterval(inst.reconnectTimer);
+          inst.reconnectTimer = null;
+        }
         return;
       }
       if (inst.status !== 'running' || !inst.url) {
@@ -201,7 +254,10 @@ export class TunnelingService {
           inst.status = 'running';
         } else {
           const url2 = await this.trySshTunnelSimple(serverId, port);
-          if (url2) { inst.url = url2; inst.status = 'running'; }
+          if (url2) {
+            inst.url = url2;
+            inst.status = 'running';
+          }
         }
       }
     }, 60000);
@@ -210,10 +266,15 @@ export class TunnelingService {
   stopTunnel(serverId: string) {
     const inst = this.tunnels.get(serverId);
     if (!inst) return;
-    if (inst.reconnectTimer) { clearInterval(inst.reconnectTimer); inst.reconnectTimer = null; }
+    if (inst.reconnectTimer) {
+      clearInterval(inst.reconnectTimer);
+      inst.reconnectTimer = null;
+    }
     if (inst.process) {
       inst.process.kill('SIGTERM');
-      setTimeout(() => { if (inst.process) inst.process.kill('SIGKILL'); }, 3000);
+      setTimeout(() => {
+        if (inst.process) inst.process.kill('SIGKILL');
+      }, 3000);
       inst.process = null;
     }
     inst.status = 'stopped';

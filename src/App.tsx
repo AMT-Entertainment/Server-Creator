@@ -31,7 +31,7 @@ function App() {
 
   useEffect(() => {
     if (!window.electronAPI) return;
-    const unsub = window.electronAPI.onUpdateState((state) => {
+    const unsub = window.electronAPI.onUpdateState(state => {
       if (state.status === 'downloading') {
         setSidebarUpdate({ type: 'downloading', progress: state.progress });
       } else if (state.status === 'downloaded') {
@@ -63,15 +63,31 @@ function App() {
             <div
               className={`sidebar-nav-item ${location.pathname === '/' ? 'active' : ''}`}
               onClick={() => navigate('/')}
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') navigate('/');
+              }}
+              aria-label={t('nav.home') as string}
             >
-              <span className="material-symbols-outlined icon">dns</span>
+              <span className="material-symbols-outlined icon" aria-hidden="true">
+                dns
+              </span>
               <span>{t('nav.home')}</span>
             </div>
             <div
               className={`sidebar-nav-item ${isActive('/settings') ? 'active' : ''}`}
               onClick={() => navigate('/settings')}
+              role="button"
+              tabIndex={0}
+              onKeyDown={e => {
+                if (e.key === 'Enter' || e.key === ' ') navigate('/settings');
+              }}
+              aria-label={t('nav.settings') as string}
             >
-              <span className="material-symbols-outlined icon">settings</span>
+              <span className="material-symbols-outlined icon" aria-hidden="true">
+                settings
+              </span>
               <span>{t('nav.settings')}</span>
             </div>
           </nav>
@@ -84,8 +100,13 @@ function App() {
             {sidebarUpdate?.type === 'downloaded' && (
               <div style={{ fontSize: 11, padding: '4px 0', textAlign: 'center' }}>
                 <span style={{ color: 'var(--accent-success)' }}>Update ready</span>
-                <button className="btn btn-primary btn-sm" style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px' }}
-                  onClick={() => { window.electronAPI?.installUpdate(); }}>
+                <button
+                  className="btn btn-primary btn-sm"
+                  style={{ marginLeft: 6, fontSize: 10, padding: '2px 6px' }}
+                  onClick={() => {
+                    window.electronAPI?.installUpdate();
+                  }}
+                >
                   Restart
                 </button>
               </div>
@@ -93,15 +114,23 @@ function App() {
             <div style={{ fontSize: 10, color: 'var(--accent-warning)', textAlign: 'center', padding: '2px 0', opacity: 0.7 }}>
               Public Beta - Data is not permanent
             </div>
-            <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: '4px 0' }}>
-              AMT Entertainment
-            </div>
+            <div style={{ fontSize: 11, color: 'var(--text-muted)', textAlign: 'center', padding: '4px 0' }}>AMT Entertainment</div>
           </div>
         </aside>
         <main className="main-content">
           <Routes>
             <Route path="/" element={<Home servers={servers} onServersChange={refreshServers} />} />
-            <Route path="/setup" element={<SetupWizard onComplete={() => { refreshServers(); navigate('/'); }} />} />
+            <Route
+              path="/setup"
+              element={
+                <SetupWizard
+                  onComplete={() => {
+                    refreshServers();
+                    navigate('/');
+                  }}
+                />
+              }
+            />
             <Route path="/server/:id" element={<ServerDetail onServersChange={refreshServers} />} />
             <Route path="/settings" element={<Settings />} />
           </Routes>

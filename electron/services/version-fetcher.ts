@@ -1,5 +1,8 @@
 import * as https from 'https';
 import * as http from 'http';
+import { createModuleLogger } from '../utils/logger';
+
+const log = createModuleLogger('version-fetcher');
 
 interface VersionEntry {
   version: string;
@@ -10,17 +13,25 @@ export class VersionFetcher {
   async getVersions(loader: string): Promise<VersionEntry[]> {
     try {
       switch (loader) {
-        case 'vanilla': return await this.getVanillaVersions();
-        case 'paper': return await this.getPaperVersions();
-        case 'fabric': return await this.getFabricVersions();
-        case 'forge': return await this.getForgeVersions();
-        case 'purpur': return await this.getPurpurVersions();
-        case 'spigot': return await this.getSpigotVersions();
-        case 'neoforge': return await this.getNeoForgeVersions();
-        default: return [];
+        case 'vanilla':
+          return await this.getVanillaVersions();
+        case 'paper':
+          return await this.getPaperVersions();
+        case 'fabric':
+          return await this.getFabricVersions();
+        case 'forge':
+          return await this.getForgeVersions();
+        case 'purpur':
+          return await this.getPurpurVersions();
+        case 'spigot':
+          return await this.getSpigotVersions();
+        case 'neoforge':
+          return await this.getNeoForgeVersions();
+        default:
+          return [];
       }
     } catch (e) {
-      console.error(`Failed to fetch versions for ${loader}:`, e);
+      log.error(e, `Failed to fetch versions for ${loader}`);
       return [];
     }
   }
@@ -71,9 +82,7 @@ export class VersionFetcher {
         }
       }
     }
-    return [...new Set(versions)]
-      .map(v => ({ version: v, stable: true }))
-      .sort((a, b) => this.compareVersions(b.version, a.version));
+    return [...new Set(versions)].map(v => ({ version: v, stable: true })).sort((a, b) => this.compareVersions(b.version, a.version));
   }
 
   private async getFabricVersions(): Promise<VersionEntry[]> {
@@ -85,7 +94,9 @@ export class VersionFetcher {
   }
 
   private async getForgeVersions(): Promise<VersionEntry[]> {
-    const data = await this.fetchJSON<{ promos: Record<string, string> }>('https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json');
+    const data = await this.fetchJSON<{ promos: Record<string, string> }>(
+      'https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json',
+    );
     const versions = new Set<string>();
     for (const key of Object.keys(data.promos || {})) {
       const mcVersion = key.split('-')[0];
@@ -100,9 +111,7 @@ export class VersionFetcher {
 
   private async getPurpurVersions(): Promise<VersionEntry[]> {
     const data = await this.fetchJSON<{ versions: string[] }>('https://api.purpurmc.org/v2/purpur');
-    return (data.versions || [])
-      .map(v => ({ version: v, stable: true }))
-      .sort((a, b) => this.compareVersions(b.version, a.version));
+    return (data.versions || []).map(v => ({ version: v, stable: true })).sort((a, b) => this.compareVersions(b.version, a.version));
   }
 
   private async getSpigotVersions(): Promise<VersionEntry[]> {
@@ -122,7 +131,9 @@ export class VersionFetcher {
 
   private async getNeoForgeVersions(): Promise<VersionEntry[]> {
     try {
-      const data = await this.fetchJSON<{ versions: string[] }>('https://maven.neoforged.net/api/maven/versions/releases/net/neoforged/neoforge');
+      const data = await this.fetchJSON<{ versions: string[] }>(
+        'https://maven.neoforged.net/api/maven/versions/releases/net/neoforged/neoforge',
+      );
       const seen = new Set<string>();
       const versions: VersionEntry[] = [];
       (data.versions || []).forEach((v: string) => {
@@ -161,25 +172,34 @@ export class VersionFetcher {
     return new Promise((resolve, reject) => {
       const parsedUrl = new URL(url);
       const protocol = parsedUrl.protocol === 'https:' ? https : http;
-      const req = protocol.get({
-        hostname: parsedUrl.hostname,
-        path: parsedUrl.pathname + parsedUrl.search,
-        headers: { 'User-Agent': 'Server-Creator/1.0 (AMT Entertainment)' },
-        timeout: 10000,
-      }, (response: http.IncomingMessage) => {
-        let data = '';
-        response.on('data', (chunk: string) => data += chunk);
-        response.on('end', () => {
-          if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
-            try { resolve(JSON.parse(data)); }
-            catch { reject(new Error(`Invalid JSON from ${url}`)); }
-          } else {
-            reject(new Error(`HTTP ${response.statusCode} from ${url}`));
-          }
-        });
-      });
+      const req = protocol.get(
+        {
+          hostname: parsedUrl.hostname,
+          path: parsedUrl.pathname + parsedUrl.search,
+          headers: { 'User-Agent': 'Server-Creator/1.0 (AMT Entertainment)' },
+          timeout: 10000,
+        },
+        (response: http.IncomingMessage) => {
+          let data = '';
+          response.on('data', (chunk: string) => (data += chunk));
+          response.on('end', () => {
+            if (response.statusCode && response.statusCode >= 200 && response.statusCode < 300) {
+              try {
+                resolve(JSON.parse(data));
+              } catch {
+                reject(new Error(`Invalid JSON from ${url}`));
+              }
+            } else {
+              reject(new Error(`HTTP ${response.statusCode} from ${url}`));
+            }
+          });
+        },
+      );
       req.on('error', reject);
-      req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('Timeout'));
+      });
     });
   }
 }

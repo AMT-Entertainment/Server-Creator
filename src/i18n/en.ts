@@ -141,7 +141,8 @@ export default {
       advancedTitle: 'Advanced Settings',
       jvmArgs: 'JVM Startup Arguments',
       jvmArgsDesc: 'Edit JVM arguments for server startup',
-      jvmWarning: 'WARNING: Incorrect JVM arguments can prevent the server from starting. Only change these settings if you know what you are doing.',
+      jvmWarning:
+        'WARNING: Incorrect JVM arguments can prevent the server from starting. Only change these settings if you know what you are doing.',
       jvmPlaceholder: '-Xmx2G -Xms1G -XX:+UseG1GC',
       rawFiles: 'Raw Server Files',
       rawFilesDesc: 'Access server files directly',

@@ -46,9 +46,7 @@ export default function Settings() {
   };
 
   const toggleAutoStartServer = async (serverId: string) => {
-    const newList = autoStartServers.includes(serverId)
-      ? autoStartServers.filter(id => id !== serverId)
-      : [...autoStartServers, serverId];
+    const newList = autoStartServers.includes(serverId) ? autoStartServers.filter(id => id !== serverId) : [...autoStartServers, serverId];
     setAutoStartServers(newList);
     if (window.electronAPI) {
       await window.electronAPI.setAutoStart({ autoStart, autoStartServers: newList });
@@ -70,12 +68,7 @@ export default function Settings() {
             <div className="settings-label">{t('settings.language')}</div>
             <div className="settings-desc">{t('settings.languageDesc')}</div>
           </div>
-          <select
-            className="select"
-            value={i18n.language}
-            onChange={e => changeLanguage(e.target.value)}
-            style={{ width: 140 }}
-          >
+          <select className="select" value={i18n.language} onChange={e => changeLanguage(e.target.value)} style={{ width: 140 }}>
             <option value="de">Deutsch</option>
             <option value="en">English</option>
           </select>
@@ -98,15 +91,13 @@ export default function Settings() {
         </div>
         {autoStart && servers.length > 0 && (
           <div>
-            <div className="text-sm text-muted mb-8" style={{ fontWeight: 500 }}>Auto-start servers:</div>
+            <div className="text-sm text-muted mb-8" style={{ fontWeight: 500 }}>
+              Auto-start servers:
+            </div>
             {servers.map(s => (
               <div key={s.id} className="flex items-center gap-12 mb-8">
                 <label className="switch">
-                  <input
-                    type="checkbox"
-                    checked={autoStartServers.includes(s.id)}
-                    onChange={() => toggleAutoStartServer(s.id)}
-                  />
+                  <input type="checkbox" checked={autoStartServers.includes(s.id)} onChange={() => toggleAutoStartServer(s.id)} />
                   <span className="switch-slider"></span>
                 </label>
                 <span>{s.name}</span>
@@ -175,7 +166,9 @@ export default function Settings() {
                   {checking ? (
                     <div className="spinner" style={{ width: 14, height: 14 }} />
                   ) : (
-                    <><span className="material-symbols-outlined icon-sm">refresh</span> Check</>
+                    <>
+                      <span className="material-symbols-outlined icon-sm">refresh</span> Check
+                    </>
                   )}
                 </button>
               )}

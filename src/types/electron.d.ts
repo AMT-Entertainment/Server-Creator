@@ -152,7 +152,12 @@ export interface ElectronAPI {
   getVersions: (loader: string) => Promise<VersionResult>;
   neoToMc: (neoVersion: string) => Promise<{ mcVersion: string }>;
   getSystemRam: () => Promise<SystemRam>;
-  modrinthSearch: (query: string, loaders: string[], versions: string[], limit?: number) => Promise<{ success: boolean; results?: ModrinthProject[]; error?: string }>;
+  modrinthSearch: (
+    query: string,
+    loaders: string[],
+    versions: string[],
+    limit?: number,
+  ) => Promise<{ success: boolean; results?: ModrinthProject[]; error?: string }>;
   modrinthGetVersions: (projectId: string) => Promise<{ success: boolean; versions?: ModrinthVersion[]; error?: string }>;
   modrinthDownload: (projectId: string, versionId: string, serverPath: string) => Promise<{ success: boolean; error?: string }>;
   startTunnel: (serverId: string, port: number) => Promise<TunnelResult>;

@@ -141,7 +141,8 @@ export default {
       advancedTitle: 'Erweiterte Einstellungen',
       jvmArgs: 'JVM-Startargumente',
       jvmArgsDesc: 'Bearbeite die JVM-Argumente fur den Server-Start',
-      jvmWarning: 'ACHTUNG: Falsche JVM-Argumente konnen verhindern, dass der Server startet. Andere diese Einstellungen nur, wenn du genau weibt, was du tust.',
+      jvmWarning:
+        'ACHTUNG: Falsche JVM-Argumente konnen verhindern, dass der Server startet. Andere diese Einstellungen nur, wenn du genau weibt, was du tust.',
       jvmPlaceholder: '-Xmx2G -Xms1G -XX:+UseG1GC',
       rawFiles: 'Rohe Serverdateien',
       rawFilesDesc: 'Greife direkt auf die Serverdateien zu',

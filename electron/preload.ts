@@ -3,7 +3,7 @@ import { contextBridge, ipcRenderer, IpcRendererEvent } from 'electron';
 contextBridge.exposeInMainWorld('electronAPI', {
   getServers: () => ipcRenderer.invoke('servers:list'),
   getServer: (id: string) => ipcRenderer.invoke('servers:get', id),
-  createServer: (config: any) => ipcRenderer.invoke('servers:create', config),
+  createServer: (config: Record<string, unknown>) => ipcRenderer.invoke('servers:create', config),
   deleteServer: (id: string) => ipcRenderer.invoke('servers:delete', id),
   startServer: (id: string) => ipcRenderer.invoke('server:start', id),
   stopServer: (id: string) => ipcRenderer.invoke('server:stop', id),
@@ -84,7 +84,8 @@ contextBridge.exposeInMainWorld('electronAPI', {
   installUpdate: () => ipcRenderer.invoke('update:install'),
   getUpdateState: () => ipcRenderer.invoke('update:get-state'),
   onUpdateState: (callback: (state: { status: string; version?: string; progress?: number; error?: string }) => void) => {
-    const handler = (_event: IpcRendererEvent, state: { status: string; version?: string; progress?: number; error?: string }) => callback(state);
+    const handler = (_event: IpcRendererEvent, state: { status: string; version?: string; progress?: number; error?: string }) =>
+      callback(state);
     ipcRenderer.on('update:state', handler);
     return () => ipcRenderer.removeListener('update:state', handler);
   },

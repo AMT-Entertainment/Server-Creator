@@ -28,14 +28,16 @@ const FEATURES: FeatureDef[] = [
     id: 'v140-improvements',
     version: '1.4.0',
     title: 'Type Safety & Quality Improvements',
-    description: 'v1.4.0 removes 90+ unsafe `any` types, adds ESLint + Prettier code formatting, and includes automated testing with Jest. The app is now more stable and easier to develop.',
+    description:
+      'v1.4.0 removes 90+ unsafe `any` types, adds ESLint + Prettier code formatting, and includes automated testing with Jest. The app is now more stable and easier to develop.',
     type: 'info',
   },
   {
     id: 'tunnel-ssh',
     version: '1.3.0',
     title: 'SSH Tunnel (Pinggy / Serveo)',
-    description: 'Tunneling now uses SSH-based tunnels (Pinggy.io and Serveo.net) instead of Playit.gg. No setup needed — just make sure SSH is installed on your system.',
+    description:
+      'Tunneling now uses SSH-based tunnels (Pinggy.io and Serveo.net) instead of Playit.gg. No setup needed — just make sure SSH is installed on your system.',
     type: 'info',
   },
   {
@@ -94,7 +96,7 @@ export class FeatureManager {
     } catch {}
   }
 
-  getNewFeatures(currentVersion: string): FeatureDef[] {
+  getNewFeatures(_currentVersion: string): FeatureDef[] {
     const newFeatures: FeatureDef[] = [];
     for (const feature of FEATURES) {
       if (!this.state.acknowledgedFeatures.includes(feature.id)) {

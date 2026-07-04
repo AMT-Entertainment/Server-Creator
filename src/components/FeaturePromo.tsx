@@ -9,18 +9,24 @@ export default function FeaturePromo() {
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    if (!window.electronAPI) { setLoading(false); return; }
-    window.electronAPI.getNewFeatures().then(r => {
-      if (r.features && r.features.length > 0) {
-        const config: Record<string, ConfigValue> = {};
-        for (const f of r.features) {
-          if (f.configKey && f.defaultValue !== undefined) config[f.configKey] = f.defaultValue;
-        }
-        setConfigValues(config);
-        setFeatures(r.features);
-      }
+    if (!window.electronAPI) {
       setLoading(false);
-    }).catch(() => setLoading(false));
+      return;
+    }
+    window.electronAPI
+      .getNewFeatures()
+      .then(r => {
+        if (r.features && r.features.length > 0) {
+          const config: Record<string, ConfigValue> = {};
+          for (const f of r.features) {
+            if (f.configKey && f.defaultValue !== undefined) config[f.configKey] = f.defaultValue;
+          }
+          setConfigValues(config);
+          setFeatures(r.features);
+        }
+        setLoading(false);
+      })
+      .catch(() => setLoading(false));
   }, []);
 
   if (loading || done || features.length === 0) return null;
@@ -43,30 +49,43 @@ export default function FeaturePromo() {
   };
 
   return (
-    <div style={{
-      position: 'fixed', inset: 0, zIndex: 9999,
-      display: 'flex', alignItems: 'center', justifyContent: 'center',
-      backgroundColor: 'rgba(0,0,0,0.6)',
-    }}>
-      <div style={{
-        backgroundColor: '#1a1a2e',
-        borderRadius: 12, padding: 32, maxWidth: 480, width: '90%',
-        border: '1px solid rgba(255,255,255,0.08)',
-      }}>
+    <div
+      style={{
+        position: 'fixed',
+        inset: 0,
+        zIndex: 9999,
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        backgroundColor: 'rgba(0,0,0,0.6)',
+      }}
+    >
+      <div
+        style={{
+          backgroundColor: '#1a1a2e',
+          borderRadius: 12,
+          padding: 32,
+          maxWidth: 480,
+          width: '90%',
+          border: '1px solid rgba(255,255,255,0.08)',
+        }}
+      >
         <div style={{ fontSize: 11, textTransform: 'uppercase', letterSpacing: 1, color: 'rgba(255,255,255,0.4)', marginBottom: 8 }}>
           New in v{current.version}
         </div>
         <h2 style={{ fontSize: 20, fontWeight: 700, margin: '0 0 12px 0' }}>{current.title}</h2>
-        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5, margin: '0 0 20px 0' }}>
-          {current.description}
-        </p>
+        <p style={{ fontSize: 14, color: 'rgba(255,255,255,0.7)', lineHeight: 1.5, margin: '0 0 20px 0' }}>{current.description}</p>
         {current.type === 'config' && current.configKey && current.configKey in configValues && (
           <div style={{ marginBottom: 20 }}>
             {current.options ? (
               <select
                 style={{
-                  width: '100%', padding: '8px 12px', borderRadius: 8,
-                  backgroundColor: '#0f0f0f', color: '#fff', border: '1px solid rgba(255,255,255,0.12)',
+                  width: '100%',
+                  padding: '8px 12px',
+                  borderRadius: 8,
+                  backgroundColor: '#0f0f0f',
+                  color: '#fff',
+                  border: '1px solid rgba(255,255,255,0.12)',
                   fontSize: 14,
                 }}
                 value={String(configValues[current.configKey])}
@@ -76,7 +95,9 @@ export default function FeaturePromo() {
                 }}
               >
                 {current.options.map((opt, i) => (
-                  <option key={i} value={String(opt.value)}>{opt.label}</option>
+                  <option key={i} value={String(opt.value)}>
+                    {opt.label}
+                  </option>
                 ))}
               </select>
             ) : (
@@ -102,9 +123,14 @@ export default function FeaturePromo() {
           <button
             onClick={handleAck}
             style={{
-              padding: '10px 24px', borderRadius: 8, border: 'none',
-              backgroundColor: 'var(--accent-primary, #4a9eff)', color: '#fff',
-              fontSize: 14, fontWeight: 600, cursor: 'pointer',
+              padding: '10px 24px',
+              borderRadius: 8,
+              border: 'none',
+              backgroundColor: 'var(--accent-primary, #4a9eff)',
+              color: '#fff',
+              fontSize: 14,
+              fontWeight: 600,
+              cursor: 'pointer',
             }}
           >
             {currentIdx < features.length - 1 ? 'Next' : 'Got it!'}

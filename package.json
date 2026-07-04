@@ -1,6 +1,6 @@
 {
   "name": "server-creator",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "description": "Server Creator by AMT Entertainment - Minecraft Server Manager",
   "main": "dist/electron/main.js",
   "scripts": {
@@ -13,11 +13,15 @@
     "dev": "npm run build:electron && webpack --mode development && electron .",
     "dist:mac": "npm run build && electron-builder --mac",
     "dist:win": "npm run build && electron-builder --win",
-    "dist:all": "npm run build && electron-builder --mac --win",
+    "dist:linux": "npm run build && electron-builder --linux",
+    "dist:all": "npm run build && electron-builder --mac --win --linux",
+    "analyze": "ANALYZE=true webpack --mode production",
     "test": "jest",
     "lint": "eslint 'src/**/*.{ts,tsx}' 'electron/**/*.ts'",
     "format": "prettier --check 'src/**/*.{ts,tsx}' 'electron/**/*.ts'",
-    "format:fix": "prettier --write 'src/**/*.{ts,tsx}' 'electron/**/*.ts'"
+    "format:fix": "prettier --write 'src/**/*.{ts,tsx}' 'electron/**/*.ts'",
+    "prepare": "husky",
+    "audit": "npm audit --audit-level=high"
   },
   "build": {
     "appId": "com.amtentertainment.server-creator",
@@ -57,11 +61,22 @@
       "allowToChangeInstallationDirectory": true,
       "installerIcon": "build-assets/icon.ico",
       "uninstallerIcon": "build-assets/icon.ico"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "category": "Game",
+      "icon": "build-assets",
+      "synopsis": "Minecraft Server Manager",
+      "description": "Create and manage Minecraft servers with ease."
     }
   },
   "dependencies": {
     "electron-updater": "^6.8.9",
     "i18next": "^23.7.0",
+    "pino": "^10.3.1",
     "react": "^18.2.0",
     "react-dom": "^18.2.0",
     "react-i18next": "^13.3.0",
@@ -70,12 +85,36 @@
   "jest": {
     "preset": "ts-jest",
     "testEnvironment": "node",
-    "roots": ["<rootDir>/src", "<rootDir>/electron"],
-    "testMatch": ["**/__tests__/**/*.test.ts", "**/__tests__/**/*.test.tsx"],
+    "roots": [
+      "<rootDir>/src",
+      "<rootDir>/electron"
+    ],
+    "testMatch": [
+      "**/__tests__/**/*.test.ts",
+      "**/__tests__/**/*.test.tsx"
+    ],
+    "collectCoverage": true,
+    "coverageThreshold": {
+      "global": {
+        "branches": 40,
+        "functions": 40,
+        "lines": 40,
+        "statements": 40
+      }
+    },
     "moduleNameMapper": {
       "^.+\\.css$": "<rootDir>/src/__tests__/style-mock.ts",
       "^electron$": "<rootDir>/src/__tests__/electron-mock.ts"
     }
+  },
+  "lint-staged": {
+    "*.{ts,tsx}": [
+      "eslint --fix",
+      "prettier --write"
+    ],
+    "*.{json,md}": [
+      "prettier --write"
+    ]
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",
@@ -84,7 +123,7 @@
     "@types/react-dom": "^18.2.0",
     "@typescript-eslint/eslint-plugin": "^8.62.1",
     "@typescript-eslint/parser": "^8.62.1",
-    "copy-webpack-plugin": "^11.0.0",
+    "copy-webpack-plugin": "^14.0.0",
     "css-loader": "^6.8.0",
     "electron": "^43.0.0",
     "electron-builder": "^26.15.3",
@@ -92,13 +131,16 @@
     "eslint-config-prettier": "^10.1.8",
     "eslint-plugin-react": "^7.37.5",
     "html-webpack-plugin": "^5.5.0",
+    "husky": "^9.1.7",
     "jest": "^30.4.2",
+    "lint-staged": "^17.0.8",
     "prettier": "^3.9.4",
     "style-loader": "^3.3.0",
     "ts-jest": "^29.4.11",
     "ts-loader": "^9.5.0",
     "typescript": "^5.3.0",
     "webpack": "^5.89.0",
+    "webpack-bundle-analyzer": "^5.3.0",
     "webpack-cli": "^5.1.0"
   }
 }

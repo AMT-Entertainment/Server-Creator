@@ -1,8 +1,11 @@
 import * as fs from 'fs';
 import * as path from 'path';
-import { spawn, ChildProcess, execSync } from 'child_process';
+import { spawn, ChildProcess } from 'child_process';
 import * as http from 'http';
 import * as https from 'https';
+import { createModuleLogger } from '../utils/logger';
+
+const log = createModuleLogger('server-manager');
 import * as os from 'os';
 import { VersionFetcher } from './version-fetcher';
 
@@ -76,7 +79,7 @@ export class ServerManager {
             crashCount: 0,
           });
         } catch (e) {
-          console.error(`Failed to load server ${dir}:`, e);
+          log.error(e, `Failed to load server ${dir}`);
         }
       }
     }
@@ -166,7 +169,9 @@ export class ServerManager {
       throw new Error('Server jar file not found');
     }
 
-    const jvmArgs = (instance.config.jvmArgs || `-Xmx${instance.config.ram}G -Xms${Math.min(1, instance.config.ram)}G`).split(/\s+/).filter(Boolean);
+    const jvmArgs = (instance.config.jvmArgs || `-Xmx${instance.config.ram}G -Xms${Math.min(1, instance.config.ram)}G`)
+      .split(/\s+/)
+      .filter(Boolean);
     const child = spawn('java', [...jvmArgs, '-jar', jarFile, 'nogui'], {
       cwd: serverDir,
       stdio: ['pipe', 'pipe', 'pipe'],
@@ -194,7 +199,7 @@ export class ServerManager {
       this.appendLog(id, `[ERROR] ${output}`);
     });
 
-    child.on('exit', (code) => {
+    child.on('exit', code => {
       instance.process = null;
       if (instance.safeStopRequested) {
         instance.status = 'stopped';
@@ -220,7 +225,7 @@ export class ServerManager {
       }
     });
 
-    child.on('error', (err) => {
+    child.on('error', err => {
       instance.process = null;
       instance.status = 'crashed';
       this.notifyStatus(id, 'crashed', { error: err.message });
@@ -251,7 +256,7 @@ export class ServerManager {
       }
     }, 30000);
 
-    return new Promise((resolve) => {
+    return new Promise(resolve => {
       const check = setInterval(() => {
         if (instance.process !== targetProcess) {
           clearInterval(check);
@@ -448,10 +453,7 @@ export class ServerManager {
         await this.downloadFile(paperUrl, jarPath);
         break;
       case 'fabric':
-        await this.downloadFile(
-          `https://meta.fabricmc.net/v2/versions/loader/${config.version}/latest/server/jar`,
-          jarPath
-        );
+        await this.downloadFile(`https://meta.fabricmc.net/v2/versions/loader/${config.version}/latest/server/jar`, jarPath);
         break;
       case 'forge':
         await this.downloadForgeJar(config, jarPath);
@@ -460,16 +462,10 @@ export class ServerManager {
         await this.downloadNeoForgeJar(config, jarPath);
         break;
       case 'purpur':
-        await this.downloadFile(
-          `https://api.purpurmc.org/v2/purpur/${config.version}/latest/download`,
-          jarPath
-        );
+        await this.downloadFile(`https://api.purpurmc.org/v2/purpur/${config.version}/latest/download`, jarPath);
         break;
       case 'spigot':
-        await this.downloadFile(
-          `https://download.getbukkit.org/spigot/spigot-${config.version}.jar`,
-          jarPath
-        );
+        await this.downloadFile(`https://download.getbukkit.org/spigot/spigot-${config.version}.jar`, jarPath);
         break;
       default:
         throw new Error(`Unsupported loader: ${config.loader}`);
@@ -485,7 +481,9 @@ export class ServerManager {
 
   private async resolvePaperUrl(version: string): Promise<string | null> {
     try {
-      const data = await this.fetchJSON<Array<{ channel: string; downloads: Record<string, { url: string }> }>>(`https://fill.papermc.io/v3/projects/paper/versions/${version}/builds`);
+      const data = await this.fetchJSON<Array<{ channel: string; downloads: Record<string, { url: string }> }>>(
+        `https://fill.papermc.io/v3/projects/paper/versions/${version}/builds`,
+      );
       if (!Array.isArray(data)) return null;
       const stable = data.find(b => b.channel === 'STABLE' && b.downloads?.['server:default']?.url);
       return stable?.downloads['server:default'].url || null;
@@ -501,7 +499,9 @@ export class ServerManager {
   }
 
   private async downloadForgeJar(config: ServerConfig, jarPath: string): Promise<void> {
-    const manifest = await this.fetchJSON<{ promos: Record<string, string> }>('https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json');
+    const manifest = await this.fetchJSON<{ promos: Record<string, string> }>(
+      'https://files.minecraftforge.net/net/minecraftforge/forge/promotions_slim.json',
+    );
     const forgeVersion = manifest.promos?.[`${config.version}-recommended`] || manifest.promos?.[`${config.version}-latest`];
     if (!forgeVersion) throw new Error(`No Forge build found for Minecraft ${config.version}`);
 
@@ -524,10 +524,11 @@ export class ServerManager {
         this.appendTerminal(config.id, data.toString());
       });
 
-      child.on('exit', (code) => {
+      child.on('exit', code => {
         if (fs.existsSync(installerPath)) fs.unlinkSync(installerPath);
         if (code === 0) {
-          const forgeJar = fs.readdirSync(path.dirname(jarPath))
+          const forgeJar = fs
+            .readdirSync(path.dirname(jarPath))
             .find(f => f.startsWith('forge-') && f.endsWith('.jar') && !f.includes('installer'));
           if (forgeJar) {
             fs.renameSync(path.join(path.dirname(jarPath), forgeJar), jarPath);
@@ -542,9 +543,12 @@ export class ServerManager {
   }
 
   private async downloadNeoForgeJar(config: ServerConfig, jarPath: string): Promise<void> {
-    const data = await this.fetchJSON<{ versions: string[] }>('https://maven.neoforged.net/api/maven/versions/releases/net/neoforged/neoforge');
-    const matchingVersions = (data.versions || [])
-      .filter((v: string) => v.startsWith(config.version) || v.startsWith(config.version.replace('.', '.')));
+    const data = await this.fetchJSON<{ versions: string[] }>(
+      'https://maven.neoforged.net/api/maven/versions/releases/net/neoforged/neoforge',
+    );
+    const matchingVersions = (data.versions || []).filter(
+      (v: string) => v.startsWith(config.version) || v.startsWith(config.version.replace('.', '.')),
+    );
     if (matchingVersions.length === 0) throw new Error(`No NeoForge build found for Minecraft ${config.version}`);
 
     const neoVersion = matchingVersions[matchingVersions.length - 1];
@@ -567,10 +571,11 @@ export class ServerManager {
         this.appendTerminal(config.id, data.toString());
       });
 
-      child.on('exit', (code) => {
+      child.on('exit', code => {
         if (fs.existsSync(installerPath)) fs.unlinkSync(installerPath);
         if (code === 0) {
-          const neoJar = fs.readdirSync(path.dirname(jarPath))
+          const neoJar = fs
+            .readdirSync(path.dirname(jarPath))
             .find(f => f.startsWith('neoforge-') && f.endsWith('.jar') && !f.includes('installer'));
           if (neoJar) {
             fs.renameSync(path.join(path.dirname(jarPath), neoJar), jarPath);
@@ -620,10 +625,10 @@ export class ServerManager {
             reject(new Error(`Download failed: ${response.statusCode} ${response.statusMessage || ''} for ${url}`));
             return;
           }
-          const total = parseInt(response.headers['content-length'] || '0', 10);
-          let downloaded = 0;
+          const _total = parseInt(response.headers['content-length'] || '0', 10);
+          let _downloaded = 0;
           response.on('data', (chunk: Buffer) => {
-            downloaded += chunk.length;
+            _downloaded += chunk.length;
           });
           response.pipe(file);
           file.on('finish', () => {
@@ -651,21 +656,30 @@ export class ServerManager {
     return new Promise((resolve, reject) => {
       const protocol = url.startsWith('https') ? https : http;
       const parsedUrl = new URL(url);
-      const req = protocol.get({
-        hostname: parsedUrl.hostname,
-        path: parsedUrl.pathname + parsedUrl.search,
-        headers: { 'User-Agent': 'Server-Creator/1.0 (AMT Entertainment)' },
-        timeout: 15000,
-      }, (response) => {
-        let data = '';
-        response.on('data', (chunk) => data += chunk);
-        response.on('end', () => {
-          try { resolve(JSON.parse(data)); }
-          catch { reject(new Error('Invalid JSON')); }
-        });
-      });
+      const req = protocol.get(
+        {
+          hostname: parsedUrl.hostname,
+          path: parsedUrl.pathname + parsedUrl.search,
+          headers: { 'User-Agent': 'Server-Creator/1.0 (AMT Entertainment)' },
+          timeout: 15000,
+        },
+        response => {
+          let data = '';
+          response.on('data', chunk => (data += chunk));
+          response.on('end', () => {
+            try {
+              resolve(JSON.parse(data));
+            } catch {
+              reject(new Error('Invalid JSON'));
+            }
+          });
+        },
+      );
       req.on('error', reject);
-      req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
+      req.on('timeout', () => {
+        req.destroy();
+        reject(new Error('Timeout'));
+      });
     });
   }
 

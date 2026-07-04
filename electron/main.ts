@@ -82,7 +82,7 @@ function createWindow() {
   });
 }
 
-let updateCheckInterval: NodeJS.Timeout | null = null;
+let _updateCheckInterval: NodeJS.Timeout | null = null;
 let updateState: {
   status: 'idle' | 'checking' | 'available' | 'downloading' | 'downloaded' | 'error';
   version?: string;
@@ -106,7 +106,7 @@ function setupAutoUpdater() {
     sendUpdateState();
   });
 
-  autoUpdater.on('update-available', (info) => {
+  autoUpdater.on('update-available', info => {
     updateState = { status: 'available', version: info.version };
     sendUpdateState();
   });
@@ -116,19 +116,25 @@ function setupAutoUpdater() {
     sendUpdateState();
   });
 
-  autoUpdater.on('download-progress', (progress) => {
+  autoUpdater.on('download-progress', progress => {
     updateState = { ...updateState, status: 'downloading', progress: Math.round(progress.percent) };
     sendUpdateState();
   });
 
-  autoUpdater.on('update-downloaded', (info) => {
+  autoUpdater.on('update-downloaded', info => {
     updateState = { status: 'downloaded', version: info.version };
     sendUpdateState();
   });
 
-  autoUpdater.on('error', (err) => {
+  autoUpdater.on('error', err => {
     const msg = (getErrorMessage(err) || '').toLowerCase();
-    if (msg.includes('404') || msg.includes('not found') || msg.includes('could not find') || msg.includes('network') || msg.includes('econnrefused')) {
+    if (
+      msg.includes('404') ||
+      msg.includes('not found') ||
+      msg.includes('could not find') ||
+      msg.includes('network') ||
+      msg.includes('econnrefused')
+    ) {
       updateState = { status: 'idle' };
     } else {
       updateState = { status: 'error', error: getErrorMessage(err) };
@@ -141,9 +147,15 @@ function checkForUpdates() {
   if (updateState.status === 'checking' || updateState.status === 'downloading' || updateState.status === 'downloaded') return;
   updateState = { status: 'checking' };
   sendUpdateState();
-  autoUpdater.checkForUpdates().catch((err) => {
+  autoUpdater.checkForUpdates().catch(err => {
     const msg = (getErrorMessage(err) || '').toLowerCase();
-    if (msg.includes('404') || msg.includes('not found') || msg.includes('could not find') || msg.includes('network') || msg.includes('econnrefused')) {
+    if (
+      msg.includes('404') ||
+      msg.includes('not found') ||
+      msg.includes('could not find') ||
+      msg.includes('network') ||
+      msg.includes('econnrefused')
+    ) {
       updateState = { status: 'idle' };
     } else {
       updateState = { status: 'error', error: getErrorMessage(err) };
@@ -169,11 +181,14 @@ function autoStartServers() {
           showNotification('Server Started', `${server.name} has started automatically`);
           const port = server.port;
           if (port && server.tunnelEnabled) {
-            tunnelingService.startTunnel(serverId, port).then(url => {
-              if (url && mainWindow && !mainWindow.isDestroyed()) {
-                mainWindow.webContents.send('server:tunnel:ready', { serverId, url });
-              }
-            }).catch(() => {});
+            tunnelingService
+              .startTunnel(serverId, port)
+              .then(url => {
+                if (url && mainWindow && !mainWindow.isDestroyed()) {
+                  mainWindow.webContents.send('server:tunnel:ready', { serverId, url });
+                }
+              })
+              .catch(() => {});
           }
         } catch (err: unknown) {
           showNotification('Server Failed', `${server.name} failed to auto-start: ${getErrorMessage(err)}`);
@@ -206,7 +221,7 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('before-quit', async (event) => {
+app.on('before-quit', async event => {
   event.preventDefault();
   tunnelingService.stopAll();
   await serverManager.stopAllServers();
@@ -311,11 +326,14 @@ ipcMain.handle('server:start', async (_event, id: string) => {
       mainWindow.webContents.send('server:tunnel:starting', { serverId: id, port });
     }
     if (port) {
-      tunnelingService.startTunnel(id, port).then(url => {
-        if (url && mainWindow && !mainWindow.isDestroyed()) {
-          mainWindow.webContents.send('server:tunnel:ready', { serverId: id, url });
-        }
-      }).catch(() => {});
+      tunnelingService
+        .startTunnel(id, port)
+        .then(url => {
+          if (url && mainWindow && !mainWindow.isDestroyed()) {
+            mainWindow.webContents.send('server:tunnel:ready', { serverId: id, url });
+          }
+        })
+        .catch(() => {});
     }
     showNotification(`Server Started`, `${server?.name || id} is now running on port ${port}`);
     return { success: true };
@@ -548,13 +566,16 @@ ipcMain.handle('update:download', () => {
   if (updateState.status === 'available' && updateState.version) {
     updateState = { status: 'downloading', version: updateState.version, progress: 0 };
     sendUpdateState();
-    autoUpdater.downloadUpdate().then(() => {
-      updateState = { status: 'downloaded', version: updateState.version };
-      sendUpdateState();
-    }).catch((err) => {
-      updateState = { status: 'error', error: getErrorMessage(err) };
-      sendUpdateState();
-    });
+    autoUpdater
+      .downloadUpdate()
+      .then(() => {
+        updateState = { status: 'downloaded', version: updateState.version };
+        sendUpdateState();
+      })
+      .catch(err => {
+        updateState = { status: 'error', error: getErrorMessage(err) };
+        sendUpdateState();
+      });
   }
   return { success: true };
 });
