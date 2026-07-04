@@ -122,7 +122,7 @@ export default function Settings() {
         <div className="flex flex-col gap-8">
           <div className="flex justify-between">
             <span className="text-muted">Version</span>
-            <span>1.3.0</span>
+            <span>1.3.1</span>
           </div>
           <div className="flex justify-between">
             <span className="text-muted">Developer</span>

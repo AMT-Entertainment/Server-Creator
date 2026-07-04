@@ -15,7 +15,8 @@ export class FileManager {
       return base;
     }
     const resolved = path.resolve(base, filePath);
-    if (!resolved.startsWith(base)) {
+    const relative = path.relative(base, resolved);
+    if (relative.startsWith('..') || path.isAbsolute(relative)) {
       throw new Error('Access denied: path traversal detected');
     }
     return resolved;

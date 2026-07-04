@@ -19,16 +19,13 @@ export class PortChecker {
     });
   }
 
-  findAvailablePort(startPort: number = 25565, maxAttempts: number = 100): Promise<number> {
-    return new Promise(async (resolve) => {
-      for (let port = startPort; port < startPort + maxAttempts; port++) {
-        const inUse = await this.isPortInUse(port);
-        if (!inUse) {
-          resolve(port);
-          return;
-        }
+  async findAvailablePort(startPort: number = 25565, maxAttempts: number = 100): Promise<number> {
+    for (let port = startPort; port < startPort + maxAttempts; port++) {
+      const inUse = await this.isPortInUse(port);
+      if (!inUse) {
+        return port;
       }
-      resolve(0);
-    });
+    }
+    return 0;
   }
 }

@@ -136,10 +136,10 @@ export class ServerManager {
     return fullConfig;
   }
 
-  deleteServer(id: string) {
+  async deleteServer(id: string) {
     const instance = this.servers.get(id);
     if (instance && instance.process) {
-      this.stopServer(id);
+      await this.stopServer(id);
     }
     const serverDir = path.join(SERVERS_DIR, id);
     if (fs.existsSync(serverDir)) {
@@ -166,12 +166,9 @@ export class ServerManager {
       throw new Error('Server jar file not found');
     }
 
-    const jvmArgs = instance.config.jvmArgs || `-Xmx${instance.config.ram}G -Xms${Math.min(1, instance.config.ram)}G`;
-    const javaCmd = `java ${jvmArgs} -jar "${jarFile}" nogui`;
-
-    const child = spawn(javaCmd, [], {
+    const jvmArgs = (instance.config.jvmArgs || `-Xmx${instance.config.ram}G -Xms${Math.min(1, instance.config.ram)}G`).split(/\s+/).filter(Boolean);
+    const child = spawn('java', [...jvmArgs, '-jar', jarFile, 'nogui'], {
       cwd: serverDir,
-      shell: true,
       stdio: ['pipe', 'pipe', 'pipe'],
     });
 
@@ -210,9 +207,11 @@ export class ServerManager {
         this.appendLog(id, `Server crashed with exit code ${code} (crash #${instance.crashCount})`);
 
         if (instance.config.autoRestart && instance.crashCount <= 3) {
-          setTimeout(() => {
-            instance.crashCount = 0;
-            this.startServer(id);
+          setTimeout(async () => {
+            try {
+              await this.startServer(id);
+              instance.crashCount = 0;
+            } catch {}
           }, 5000);
         }
       } else {
@@ -245,15 +244,16 @@ export class ServerManager {
       instance.process.kill('SIGTERM');
     }
 
+    const targetProcess = instance.process;
     const killTimeout = setTimeout(() => {
-      if (instance.process) {
-        instance.process.kill('SIGKILL');
+      if (targetProcess && !targetProcess.killed) {
+        targetProcess.kill('SIGKILL');
       }
     }, 30000);
 
     return new Promise((resolve) => {
       const check = setInterval(() => {
-        if (!instance.process) {
+        if (instance.process !== targetProcess) {
           clearInterval(check);
           clearTimeout(killTimeout);
           instance.status = 'stopped';
@@ -310,7 +310,9 @@ export class ServerManager {
   }
 
   getJVMArgs(id: string): string {
-    return this.servers.get(id)?.config.jvmArgs || `-Xmx${this.servers.get(id)?.config.ram || 2}G -Xms1G`;
+    const inst = this.servers.get(id);
+    if (!inst) return '';
+    return inst.config.jvmArgs || `-Xmx${inst.config.ram}G -Xms1G`;
   }
 
   setJVMArgs(id: string, args: string) {
@@ -349,10 +351,12 @@ export class ServerManager {
     fs.writeFileSync(propsPath, content, 'utf-8');
   }
 
-  stopAllServers() {
+  async stopAllServers() {
+    const promises: Promise<void>[] = [];
     for (const [id] of this.servers) {
-      this.stopServer(id, true);
+      promises.push(this.stopServer(id, true));
     }
+    await Promise.all(promises);
   }
 
   onTerminalOutput(id: string, listener: (output: string) => void): () => void {
@@ -365,11 +369,14 @@ export class ServerManager {
     };
   }
 
-  onStatusChange(id: string, listener: (status: string, data?: any) => void) {
+  onStatusChange(id: string, listener: (status: string, data?: any) => void): () => void {
     const instance = this.servers.get(id);
-    if (instance) {
-      instance.statusListeners.push(listener);
-    }
+    if (!instance) return () => {};
+    instance.statusListeners.push(listener);
+    return () => {
+      const idx = instance.statusListeners.indexOf(listener);
+      if (idx !== -1) instance.statusListeners.splice(idx, 1);
+    };
   }
 
   private appendTerminal(id: string, output: string) {
@@ -518,13 +525,13 @@ export class ServerManager {
       });
 
       child.on('exit', (code) => {
+        if (fs.existsSync(installerPath)) fs.unlinkSync(installerPath);
         if (code === 0) {
           const forgeJar = fs.readdirSync(path.dirname(jarPath))
             .find(f => f.startsWith('forge-') && f.endsWith('.jar') && !f.includes('installer'));
           if (forgeJar) {
             fs.renameSync(path.join(path.dirname(jarPath), forgeJar), jarPath);
           }
-          if (fs.existsSync(installerPath)) fs.unlinkSync(installerPath);
           resolve();
         } else {
           reject(new Error(`Forge installer exited with code ${code}`));
@@ -561,13 +568,13 @@ export class ServerManager {
       });
 
       child.on('exit', (code) => {
+        if (fs.existsSync(installerPath)) fs.unlinkSync(installerPath);
         if (code === 0) {
           const neoJar = fs.readdirSync(path.dirname(jarPath))
             .find(f => f.startsWith('neoforge-') && f.endsWith('.jar') && !f.includes('installer'));
           if (neoJar) {
             fs.renameSync(path.join(path.dirname(jarPath), neoJar), jarPath);
           }
-          if (fs.existsSync(installerPath)) fs.unlinkSync(installerPath);
           resolve();
         } else {
           reject(new Error(`NeoForge installer exited with code ${code}`));
@@ -644,10 +651,11 @@ export class ServerManager {
     return new Promise((resolve, reject) => {
       const protocol = url.startsWith('https') ? https : http;
       const parsedUrl = new URL(url);
-      protocol.get({
+      const req = protocol.get({
         hostname: parsedUrl.hostname,
         path: parsedUrl.pathname + parsedUrl.search,
         headers: { 'User-Agent': 'Server-Creator/1.0 (AMT Entertainment)' },
+        timeout: 15000,
       }, (response) => {
         let data = '';
         response.on('data', (chunk) => data += chunk);
@@ -655,7 +663,9 @@ export class ServerManager {
           try { resolve(JSON.parse(data)); }
           catch { reject(new Error('Invalid JSON')); }
         });
-      }).on('error', reject);
+      });
+      req.on('error', reject);
+      req.on('timeout', () => { req.destroy(); reject(new Error('Timeout')); });
     });
   }
 

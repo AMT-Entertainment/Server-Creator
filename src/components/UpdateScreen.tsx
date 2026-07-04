@@ -35,12 +35,7 @@ export default function UpdateScreen({ onComplete }: UpdateScreenProps) {
         setPhase('downloaded');
       } else if (state.status === 'error') {
         setErrorMsg(state.error || 'Update check failed');
-        if (state.version) {
-          setVersion(state.version);
-          setPhase('downloaded');
-        } else {
-          setPhase('done');
-        }
+        setPhase('error');
       }
     });
 

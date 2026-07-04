@@ -45,11 +45,21 @@ export class TunnelingService {
     return '';
   }
 
+  private killProc(proc: ChildProcess | null) {
+    if (!proc || proc.killed) return;
+    try { proc.kill('SIGKILL'); } catch {}
+  }
+
   private async trySshTunnel(serverId: string, port: number): Promise<string | null> {
     return new Promise((resolve) => {
       let done = false;
+      const cleanup = () => {
+        const i = this.tunnels.get(serverId);
+        if (i && i.process === proc) i.process = null;
+        this.killProc(proc);
+      };
       const timeout = setTimeout(() => {
-        if (!done) { done = true; console.log('[SSH] Timed out'); resolve(null); }
+        if (!done) { done = true; cleanup(); resolve(null); }
       }, 30000);
 
       const proc = spawn('ssh', [
@@ -72,31 +82,28 @@ export class TunnelingService {
 
         const m = text.match(/(?:tcp|http|https?):\/\/([a-zA-Z0-9][a-zA-Z0-9_.-]*\.[a-zA-Z][a-zA-Z0-9_.-]*)/);
         if (m) {
-          const host = m[1];
           clearTimeout(timeout);
           done = true;
-          const tunnelUrl = `${host}`;
-          console.log(`[SSH] Got tunnel: ${tunnelUrl}`);
-          resolve(tunnelUrl);
+          cleanup();
+          resolve(m[1]);
           return;
         }
 
         if (text.includes('denied') || text.includes('refused')) {
           clearTimeout(timeout);
           done = true;
+          cleanup();
           resolve(null);
         }
       };
 
       proc.stdout?.on('data', onData);
       proc.stderr?.on('data', onData);
-      proc.on('exit', (code) => {
-        const i = this.tunnels.get(serverId);
-        if (i) i.process = null;
-        if (!done) { done = true; clearTimeout(timeout); resolve(null); }
+      proc.on('exit', () => {
+        if (!done) { done = true; clearTimeout(timeout); cleanup(); resolve(null); }
       });
       proc.on('error', () => {
-        if (!done) { done = true; clearTimeout(timeout); resolve(null); }
+        if (!done) { done = true; clearTimeout(timeout); cleanup(); resolve(null); }
       });
     });
   }
@@ -104,8 +111,13 @@ export class TunnelingService {
   private async trySshTunnelSimple(serverId: string, port: number): Promise<string | null> {
     return new Promise((resolve) => {
       let done = false;
+      const cleanup = () => {
+        const i = this.tunnels.get(serverId);
+        if (i && i.process === proc) i.process = null;
+        this.killProc(proc);
+      };
       const timeout = setTimeout(() => {
-        if (!done) { done = true; resolve(null); }
+        if (!done) { done = true; cleanup(); resolve(null); }
       }, 25000);
 
       const proc = spawn('ssh', [
@@ -128,7 +140,7 @@ export class TunnelingService {
         if (m) {
           clearTimeout(timeout);
           done = true;
-          console.log(`[SSH] Got serveo tunnel: ${m[0]}`);
+          cleanup();
           resolve(`${m[0]}:${port}`);
           return;
         }
@@ -136,19 +148,18 @@ export class TunnelingService {
         if (text.includes('denied') || text.includes('refused')) {
           clearTimeout(timeout);
           done = true;
+          cleanup();
           resolve(null);
         }
       };
 
       proc.stdout?.on('data', onData);
       proc.stderr?.on('data', onData);
-      proc.on('exit', (code) => {
-        const i = this.tunnels.get(serverId);
-        if (i) i.process = null;
-        if (!done) { done = true; clearTimeout(timeout); resolve(null); }
+      proc.on('exit', () => {
+        if (!done) { done = true; clearTimeout(timeout); cleanup(); resolve(null); }
       });
       proc.on('error', () => {
-        if (!done) { done = true; clearTimeout(timeout); resolve(null); }
+        if (!done) { done = true; clearTimeout(timeout); cleanup(); resolve(null); }
       });
     });
   }

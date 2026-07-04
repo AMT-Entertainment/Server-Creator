@@ -49,7 +49,7 @@ contextBridge.exposeInMainWorld('electronAPI', {
   getNextFeature: () => ipcRenderer.invoke('features:next'),
 
   // Port checking
-  checkPort: (port: number) => ipcRenderer.invoke('port:check', port),
+  checkPort: (port: number, excludeServerId?: string) => ipcRenderer.invoke('port:check', port, excludeServerId),
 
   // Versions
   getVersions: (loader: string) => ipcRenderer.invoke('versions:get', loader),

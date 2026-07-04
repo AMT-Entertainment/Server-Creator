@@ -57,6 +57,10 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
   }, []);
 
   useEffect(() => {
+    return () => progressUnsubRef.current?.();
+  }, []);
+
+  useEffect(() => {
     if (loader) {
       setVersion('');
       setVersionsLoading(true);
@@ -95,7 +99,6 @@ export default function SetupWizard({ onComplete }: SetupWizardProps) {
       case 3: return true;
       case 4: return ram >= 1 && ram <= systemRam.maxServerRam;
       case 5: return true;
-      case 6: return true;
       default: return false;
     }
   };

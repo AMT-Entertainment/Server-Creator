@@ -95,7 +95,6 @@ function sendUpdateState() {
 }
 
 function setupAutoUpdater() {
-  autoUpdater.logger = console;
   autoUpdater.autoDownload = false;
   autoUpdater.autoInstallOnAppQuit = true;
   autoUpdater.allowPrerelease = false;
@@ -186,7 +185,6 @@ app.whenReady().then(() => {
   createWindow();
   setupAutoUpdater();
 
-  checkForUpdates();
   updateCheckInterval = setInterval(checkForUpdates, 3600000);
 
   autoStartServers();
@@ -206,9 +204,11 @@ app.on('window-all-closed', () => {
   }
 });
 
-app.on('before-quit', () => {
+app.on('before-quit', async (event) => {
+  event.preventDefault();
   tunnelingService.stopAll();
-  serverManager.stopAllServers();
+  await serverManager.stopAllServers();
+  app.quit();
 });
 
 // === IPC Handlers ===
@@ -288,8 +288,8 @@ ipcMain.handle('servers:create', async (event, config: any) => {
   }
 });
 
-ipcMain.handle('servers:delete', (_event, id: string) => {
-  serverManager.deleteServer(id);
+ipcMain.handle('servers:delete', async (_event, id: string) => {
+  await serverManager.deleteServer(id);
   return { success: true };
 });
 
@@ -370,8 +370,9 @@ ipcMain.handle('server:status', (_event, id: string) => {
   return serverManager.getServerStatus(id);
 });
 
-// Terminal output listener
+// Listeners tracking for cleanup
 const terminalUnlisteners: Map<string, () => void> = new Map();
+const statusUnlisteners: Map<string, () => void> = new Map();
 
 ipcMain.handle('server:terminal:listen', (event, id: string) => {
   const existing = terminalUnlisteners.get(id);
@@ -395,11 +396,14 @@ ipcMain.handle('server:terminal:unlisten', (event, id: string) => {
 });
 
 ipcMain.handle('server:status:listen', (event, id: string) => {
-  serverManager.onStatusChange(id, (status: string, data?: any) => {
+  const existing = statusUnlisteners.get(id);
+  if (existing) existing();
+  const unsub = serverManager.onStatusChange(id, (status: string, data?: any) => {
     if (mainWindow && !mainWindow.isDestroyed()) {
       mainWindow.webContents.send('server:status:changed', id, status, data);
     }
   });
+  statusUnlisteners.set(id, unsub);
   return { success: true };
 });
 
@@ -546,7 +550,7 @@ ipcMain.handle('update:download', () => {
       updateState = { status: 'downloaded', version: updateState.version };
       sendUpdateState();
     }).catch((err) => {
-      updateState = { status: 'error', version: updateState.version, error: err.message };
+      updateState = { status: 'error', error: err.message };
       sendUpdateState();
     });
   }
