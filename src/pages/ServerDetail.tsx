@@ -144,12 +144,19 @@ export default function ServerDetail({ onServersChange }: ServerDetailProps) {
     if (!id || !window.electronAPI || !server) return;
     try {
       const result = await window.electronAPI.startTunnel(id, server.port);
-      if (result.success && result.url) {
+      if (result.url) {
         setTunnelStatus('running');
         setTunnelUrl(result.url);
+      } else {
+        setTunnelStatus('stopped');
+        setTunnelUrl('');
       }
-    } catch {}
+    } catch {
+      setTunnelStatus('stopped');
+    }
   };
+
+  const removeProtocol = (u: string) => u.replace(/^https?:\/\//, '').replace(/\/$/, '');
 
   const handleStart = async () => {
     if (!id || !window.electronAPI) return;
