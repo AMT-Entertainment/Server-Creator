@@ -22,13 +22,13 @@ jobs:
       - run: npx electron-builder --win --config.win.target=nsis --publish=never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: softprops/action-gh-release@v2
+      - uses: actions/upload-artifact@v4
         with:
-          files: |
+          name: windows-build
+          path: |
             release/*.exe
             release/*.exe.blockmap
             release/latest.yml
-          tag_name: ${{ github.ref_name }}
 
   build-mac:
     runs-on: macos-latest
@@ -43,10 +43,31 @@ jobs:
       - run: npx electron-builder --mac --config.mac.target=dmg --publish=never
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-      - uses: softprops/action-gh-release@v2
+      - uses: actions/upload-artifact@v4
         with:
-          files: |
+          name: mac-build
+          path: |
             release/*.dmg
             release/*.dmg.blockmap
             release/latest-mac.yml
+
+  release:
+    needs: [build-windows, build-mac]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: "*-build"
+          merge-multiple: true
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            *.exe
+            *.exe.blockmap
+            *.dmg
+            *.dmg.blockmap
+            latest.yml
+            latest-mac.yml
           tag_name: ${{ github.ref_name }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
